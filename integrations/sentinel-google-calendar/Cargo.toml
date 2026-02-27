@@ -1,0 +1,12 @@
+[package]
+name = "sentinel-google-calendar"
+description = "Google Calendar integration for Sentinel"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sentinel-core = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }

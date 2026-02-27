@@ -1,0 +1,43 @@
+# Sentinel configuration for Docker
+# This file is mounted read-only into the container.
+#
+# For the full reference, see config/sentinel.example.toml
+
+[user]
+name = "Your Name"
+timezone = "Europe/Lisbon"
+locale = "pt-PT"
+country = "PT"
+# assistant_name = "Sentinel"   # customize your assistant's display name
+
+# AI provider — defaults to Anthropic; set your API key in .env
+# [ai]
+# provider = "anthropic"
+# model = "claude-sonnet-4-20250514"
+
+[[email.accounts]]
+name = "personal"
+imap_host = "mail.example.com"
+imap_port = 993
+
+# CalDAV — points to the Radicale container (compose.yml) or host
+[calendar]
+caldav_url = "http://radicale:5232/sentinel/default/"
+# If using compose.standalone.yml with Radicale on the host:
+# caldav_url = "http://host.docker.internal:5232/user/default/"
+
+# Routing — uncomment if OSRM is running
+# [routing]
+# provider = "osrm"
+# endpoint = "http://osrm:5000"   # compose.yml
+# endpoint = "http://host.docker.internal:5000"  # standalone
+
+[privacy]
+ledger_retention_days = 365
+audit_retention_days = 180
+email_cache_retention_days = 30
+memory_review_monthly = true
+
+[policy]
+auto_approve_reads = true
+max_writes_per_hour = 20

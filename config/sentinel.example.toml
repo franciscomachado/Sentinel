@@ -1,0 +1,154 @@
+# Sentinel Configuration
+# Copy to ~/.config/sentinel/sentinel.toml and customize
+
+[user]
+name = "Your Name"
+timezone = "Europe/Lisbon"
+locale = "pt-PT"
+country = "PT"
+# assistant_name = "Sentinel"   # customize your assistant's display name
+# When home and work are in different municipalities, Sentinel knows which
+# holidays affect your commute vs your kids' school schedule.
+home_region = "porto"
+# work_region = "lisbon"
+
+# AI Provider — Sentinel is designed and tuned for Claude (Anthropic).
+# Other providers work but results may vary.
+[ai]
+provider = "anthropic"          # default; any OpenAI-compatible provider also works
+# model = "claude-sonnet-4-20250514"  # override via config or SENTINEL_MODEL env var
+# api_base = "https://api.anthropic.com/v1/messages"  # custom endpoint (optional)
+#
+# Anthropic uses its own API format. All other providers use the OpenAI-compatible
+# chat completions API. Well-known providers have built-in defaults:
+#
+#   anthropic — requires ANTHROPIC_API_KEY; default model: claude-sonnet-4-20250514
+#   openai    — requires OPENAI_API_KEY; default model: gpt-4o
+#   deepseek  — requires DEEPSEEK_API_KEY; default model: deepseek-chat
+#   gemini    — requires GEMINI_API_KEY; default model: gemini-2.0-flash
+#   groq      — requires GROQ_API_KEY; default model: llama-3.3-70b-versatile
+#   mistral   — requires MISTRAL_API_KEY; default model: mistral-large-latest
+#   together  — requires TOGETHER_API_KEY; default model: meta-llama/...
+#   ollama    — no API key needed; default model: llama3.1 (localhost)
+#
+# Any other name works too — set api_base and model, and provide the API key
+# via SENTINEL_{NAME}_API_KEY or {NAME}_API_KEY environment variable.
+#
+# Examples:
+#   provider = "deepseek"
+#   model = "deepseek-chat"
+#
+#   provider = "fireworks"
+#   model = "accounts/fireworks/models/llama-v3p3-70b-instruct"
+#   api_base = "https://api.fireworks.ai/inference/v1/chat/completions"
+
+[[email.accounts]]
+name = "personal"
+imap_host = "mail.example.com"
+imap_port = 993
+smtp_host = "mail.example.com"
+smtp_port = 587
+
+# [[email.accounts]]
+# name = "work"
+# imap_host = "mail.work.com"
+# imap_port = 993
+# # Per-account triage rules (merged with global [email.triage]):
+# # - sender lists are combined; preview_max_chars overrides global
+# [email.accounts.triage]
+# priority_senders = ["boss@work.com", "cto@work.com"]
+# ignore_senders = ["*@jira.work.com"]
+
+# Global triage rules — apply to all accounts unless overridden
+[email.triage]
+priority_senders = ["important@example.com"]
+ignore_senders = ["*@newsletter.*", "noreply@*"]
+preview_max_chars = 500
+
+# Signal — mobile communication via signal-cli (externally managed)
+# signal-cli must be running with both --http (sending) and --socket (receiving):
+#   signal-cli -a +351XXXXXXXXX daemon --http localhost:8083 --socket
+# [signal]
+# enabled = true
+# account = "+351XXXXXXXXX"
+# port = 8083                                    # signal-cli listening port
+# http_url = "http://localhost:8083/api/v1/rpc"  # full URL override (optional)
+# allow_from = ["+351YYYYYYYYY"]   # only process messages from these numbers
+# group_policy = "ignore"           # "ignore" or "allowlist"
+# allowed_groups = []                # group IDs when group_policy = "allowlist"
+# send_read_receipts = true
+
+[calendar]
+caldav_url = "http://localhost:5232/user/default/"
+# poll_interval_secs = 300       # how often to check for changes (default: 5min)
+# username = "user"              # or set SENTINEL_CALDAV_USER env var
+# password = "secret"            # or set SENTINEL_CALDAV_PASS env var
+
+# Weather — uses Open-Meteo (free, no API key needed)
+# [weather]
+# lat = 41.1579                  # home latitude
+# lon = -8.6291                  # home longitude
+# poll_interval_secs = 3600      # default: 1 hour
+
+# Departure alerts — combines calendar + routing + weather
+# Requires both [routing] and [departure] to be set
+# [departure]
+# home_lat = 41.1579
+# home_lon = -8.6291
+# check_interval_secs = 900      # default: 15 minutes
+# lookahead_hours = 3            # how far ahead to scan calendar
+# comfort_buffer_minutes = 5     # extra buffer on top of travel time
+
+[routing]
+provider = "osrm"
+endpoint = "http://localhost:5000"
+
+[privacy]
+ledger_retention_days = 365
+audit_retention_days = 180
+email_cache_retention_days = 30
+memory_review_monthly = true
+
+[policy]
+auto_approve_reads = true
+max_writes_per_hour = 20
+
+# [policy.quiet_hours]
+# start = "22:00"
+# end = "07:00"
+# except = ["Urgent"]
+
+# [policy.email]
+# never_send_to = []
+# always_confirm_send = true
+
+# [policy.calendar]
+# auto_approve_reminder_creation = true
+# require_confirmation_for_deletion = true
+
+# [policy.tasks]
+# auto_approve_completion = true
+# max_recurring_tasks = 50
+
+# [policy.bring]
+# auto_approve_when_user_requested = true
+# auto_approve_ai_suggested = false
+# notify_partner_on_removal = true
+
+# [policy.spending]
+# monthly_ai_budget_euros = 10.0
+# warn_at_percentage = 80
+
+# [integrations.events]
+# provider = "feed"
+# sources = [
+#     { name = "Local Venue", url = "https://...", type = "ical" },
+# ]
+# max_distance_km = 40
+# check_interval_hours = 24
+
+# [[sports.motorsport]]
+# id = "f1"
+# name = "Formula 1"
+# interest = "follow"
+# notify = "each_session"

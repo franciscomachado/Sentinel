@@ -1,0 +1,64 @@
+[country]
+name = "United States"
+code = "US"
+
+[[fixed_holidays]]
+name = "New Year's Day"
+month = 1
+day = 1
+
+[[fixed_holidays]]
+name = "Juneteenth"
+month = 6
+day = 19
+
+[[fixed_holidays]]
+name = "Independence Day"
+month = 7
+day = 4
+
+[[fixed_holidays]]
+name = "Veterans Day"
+month = 11
+day = 11
+
+[[fixed_holidays]]
+name = "Christmas Day"
+month = 12
+day = 25
+
+[[nth_weekday_holidays]]
+name = "Martin Luther King Jr. Day"
+month = 1
+weekday = "monday"
+nth = 3
+
+[[nth_weekday_holidays]]
+name = "Presidents' Day"
+month = 2
+weekday = "monday"
+nth = 3
+
+[[nth_weekday_holidays]]
+name = "Memorial Day"
+month = 5
+weekday = "monday"
+nth = -1
+
+[[nth_weekday_holidays]]
+name = "Labor Day"
+month = 9
+weekday = "monday"
+nth = 1
+
+[[nth_weekday_holidays]]
+name = "Columbus Day"
+month = 10
+weekday = "monday"
+nth = 2
+
+[[nth_weekday_holidays]]
+name = "Thanksgiving Day"
+month = 11
+weekday = "thursday"
+nth = 4

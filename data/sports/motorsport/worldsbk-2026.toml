@@ -1,0 +1,7 @@
+# WorldSBK - 2026 Season Calendar
+# Community-contributed data file
+
+[series]
+name = "World Superbike Championship"
+id = "worldsbk"
+season = 2026

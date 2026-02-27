@@ -1,0 +1,107 @@
+# Sentinel — Full Stack
+#
+# Brings up Sentinel with all supporting services:
+#   - Radicale (CalDAV calendar server)
+#   - OSRM (self-hosted routing for departure alerts)
+#   - signal-cli (Signal messaging — requires separate registration)
+#
+# Usage:
+#   cp .env.example .env   # fill in your API keys
+#   docker compose up -d
+#
+# First-time Radicale setup:
+#   The default user/password is sentinel/changeme — change SENTINEL_CALDAV_PASS
+#   in your .env file before starting.
+#
+# OSRM setup:
+#   Before first run, download and prepare map data:
+#     mkdir -p osrm-data && cd osrm-data
+#     wget https://download.geofabrik.de/europe/portugal-latest.osm.pbf
+#     docker run --rm -v "$PWD:/data" osrm/osrm-backend osrm-extract -p /opt/car.lua /data/portugal-latest.osm.pbf
+#     docker run --rm -v "$PWD:/data" osrm/osrm-backend osrm-partition /data/portugal-latest.osrm
+#     docker run --rm -v "$PWD:/data" osrm/osrm-backend osrm-customize /data/portugal-latest.osrm
+#   Then uncomment the osrm service below and set the volume path.
+
+name: sentinel
+
+services:
+  # ── Sentinel daemon ──────────────────────────────────────────
+  sentinel:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - SENTINEL_CALDAV_USER=${SENTINEL_CALDAV_USER:-sentinel}
+      - SENTINEL_CALDAV_PASS=${SENTINEL_CALDAV_PASS:-changeme}
+    volumes:
+      - sentinel-data:/home/sentinel/.local/share/sentinel
+      - ./sentinel.toml:/home/sentinel/.config/sentinel/sentinel.toml:ro
+    ports:
+      - "127.0.0.1:8765:8765"   # dashboard — localhost only
+    depends_on:
+      radicale:
+        condition: service_healthy
+    networks:
+      - sentinel-net
+
+  # ── Radicale (CalDAV) ───────────────────────────────────────
+  radicale:
+    image: tomsquest/docker-radicale:latest
+    restart: unless-stopped
+    volumes:
+      - radicale-data:/data
+    ports:
+      - "127.0.0.1:5232:5232"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5232/.web/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - sentinel-net
+
+  # ── OSRM (routing) ─────────────────────────────────────────
+  # Uncomment after preparing map data (see instructions above).
+  #
+  # osrm:
+  #   image: osrm/osrm-backend:latest
+  #   restart: unless-stopped
+  #   command: osrm-routed --algorithm mld /data/portugal-latest.osrm
+  #   volumes:
+  #     - ./osrm-data:/data:ro
+  #   ports:
+  #     - "127.0.0.1:5000:5000"
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 3
+  #   networks:
+  #     - sentinel-net
+
+  # ── signal-cli (Signal messaging) ──────────────────────────
+  # Requires separate registration first. See:
+  #   https://github.com/bbernhard/signal-cli-rest-api
+  #
+  # signal-cli:
+  #   image: bbernhard/signal-cli-rest-api:latest
+  #   restart: unless-stopped
+  #   environment:
+  #     - MODE=native
+  #   volumes:
+  #     - signal-data:/home/.local/share/signal-cli
+  #   ports:
+  #     - "127.0.0.1:8083:8080"
+  #   networks:
+  #     - sentinel-net
+
+volumes:
+  sentinel-data:
+  radicale-data:
+  # signal-data:
+
+networks:
+  sentinel-net:
+    driver: bridge

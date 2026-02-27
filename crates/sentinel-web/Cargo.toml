@@ -1,0 +1,22 @@
+[package]
+name = "sentinel-web"
+description = "Localhost web dashboard for Sentinel"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sentinel-core = { workspace = true }
+sentinel-membrane = { workspace = true }
+sentinel-memory = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+axum = { workspace = true }
+tower-http = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }

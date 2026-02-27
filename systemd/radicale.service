@@ -1,0 +1,12 @@
+[Unit]
+Description=Radicale CalDAV Server
+After=network.target
+
+[Service]
+Type=simple
+User=radicale
+ExecStart=/usr/bin/radicale
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

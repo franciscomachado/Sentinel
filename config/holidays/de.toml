@@ -1,0 +1,44 @@
+[country]
+name = "Germany"
+code = "DE"
+
+[[fixed_holidays]]
+name = "Neujahrstag"
+month = 1
+day = 1
+
+[[fixed_holidays]]
+name = "Tag der Arbeit"
+month = 5
+day = 1
+
+[[fixed_holidays]]
+name = "Tag der Deutschen Einheit"
+month = 10
+day = 3
+
+[[fixed_holidays]]
+name = "Erster Weihnachtstag"
+month = 12
+day = 25
+
+[[fixed_holidays]]
+name = "Zweiter Weihnachtstag"
+month = 12
+day = 26
+
+[[easter_relative]]
+name = "Karfreitag"
+offset = -2
+
+[[easter_relative]]
+name = "Ostermontag"
+offset = 1
+
+[[easter_relative]]
+name = "Christi Himmelfahrt"
+offset = 39
+
+[[easter_relative]]
+name = "Pfingstmontag"
+offset = 50

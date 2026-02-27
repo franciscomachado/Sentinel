@@ -1,0 +1,59 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/sentinel-core",
+    "crates/sentinel-membrane",
+    "crates/sentinel-watchers",
+    "crates/sentinel-cortex",
+    "crates/sentinel-gate",
+    "crates/sentinel-memory",
+    "crates/sentinel-web",
+    "crates/sentinel-cli",
+    "integrations/sentinel-gmail",
+    "integrations/sentinel-google-calendar",
+    "integrations/sentinel-todoist",
+    "integrations/sentinel-telegram",
+    "integrations/sentinel-bring",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+sentinel-core = { path = "crates/sentinel-core" }
+sentinel-membrane = { path = "crates/sentinel-membrane" }
+sentinel-watchers = { path = "crates/sentinel-watchers" }
+sentinel-cortex = { path = "crates/sentinel-cortex" }
+sentinel-gate = { path = "crates/sentinel-gate" }
+sentinel-memory = { path = "crates/sentinel-memory" }
+sentinel-cli = { path = "crates/sentinel-cli" }
+sentinel-web = { path = "crates/sentinel-web" }
+sentinel-bring = { path = "integrations/sentinel-bring" }
+sentinel-gmail = { path = "integrations/sentinel-gmail" }
+sentinel-google-calendar = { path = "integrations/sentinel-google-calendar" }
+sentinel-todoist = { path = "integrations/sentinel-todoist" }
+sentinel-telegram = { path = "integrations/sentinel-telegram" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+toml = "0.8"
+async-trait = "0.1"
+thiserror = "2"
+anyhow = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+reqwest = { version = "0.12", features = ["json"] }
+futures-util = "0.3"
+clap = { version = "4", features = ["derive"] }
+directories = "6"
+notify-rust = "4"
+axum = "0.8"
+tower-http = { version = "0.6", features = ["cors"] }
+ring = "0.17"
+base64 = "0.22"

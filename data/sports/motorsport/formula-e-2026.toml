@@ -1,0 +1,7 @@
+# Formula E - 2026 Season Calendar
+# Community-contributed data file
+
+[series]
+name = "Formula E"
+id = "formula-e"
+season = 2026

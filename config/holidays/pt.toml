@@ -1,0 +1,75 @@
+[country]
+name = "Portugal"
+code = "PT"
+
+[[fixed_holidays]]
+name = "Ano Novo"
+month = 1
+day = 1
+
+[[fixed_holidays]]
+name = "Dia da Liberdade"
+month = 4
+day = 25
+
+[[fixed_holidays]]
+name = "Dia do Trabalhador"
+month = 5
+day = 1
+
+[[fixed_holidays]]
+name = "Dia de Portugal"
+month = 6
+day = 10
+
+[[fixed_holidays]]
+name = "Assunção de Nossa Senhora"
+month = 8
+day = 15
+
+[[fixed_holidays]]
+name = "Implantação da República"
+month = 10
+day = 5
+
+[[fixed_holidays]]
+name = "Dia de Todos os Santos"
+month = 11
+day = 1
+
+[[fixed_holidays]]
+name = "Restauração da Independência"
+month = 12
+day = 1
+
+[[fixed_holidays]]
+name = "Imaculada Conceição"
+month = 12
+day = 8
+
+[[fixed_holidays]]
+name = "Natal"
+month = 12
+day = 25
+
+[[easter_relative]]
+name = "Sexta-feira Santa"
+offset = -2
+
+[[easter_relative]]
+name = "Corpo de Deus"
+offset = 60
+
+[regions.porto]
+name = "Porto"
+[[regions.porto.holidays]]
+name = "São João"
+month = 6
+day = 24
+
+[regions.lisbon]
+name = "Lisboa"
+[[regions.lisbon.holidays]]
+name = "Santo António"
+month = 6
+day = 13

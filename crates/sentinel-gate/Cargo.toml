@@ -1,0 +1,18 @@
+[package]
+name = "sentinel-gate"
+description = "Human gate: Signal, desktop notifications, approval flow"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sentinel-core = { workspace = true }
+sentinel-membrane = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+reqwest = { workspace = true }
+notify-rust = { workspace = true }

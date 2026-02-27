@@ -1,0 +1,12 @@
+[package]
+name = "sentinel-telegram"
+description = "Telegram integration for Sentinel (Bot API)"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sentinel-core = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }

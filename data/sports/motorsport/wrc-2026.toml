@@ -1,0 +1,7 @@
+# WRC - 2026 Season Calendar
+# Community-contributed data file
+
+[series]
+name = "World Rally Championship"
+id = "wrc"
+season = 2026

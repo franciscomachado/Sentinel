@@ -1,0 +1,32 @@
+# Sentinel Policy Configuration
+# Copy to ~/.config/sentinel/policies.toml and customize
+
+[policy]
+auto_approve_reads = true
+max_writes_per_hour = 20
+
+[policy.quiet_hours]
+start = "22:30"
+end = "07:00"
+except = ["urgent"]
+
+[policy.email]
+never_send_to = ["*@unknown-domain.com"]
+always_confirm_send = true
+
+[policy.calendar]
+auto_approve_reminder_creation = true
+require_confirmation_for_deletion = true
+
+[policy.tasks]
+auto_approve_completion = false
+max_recurring_tasks = 50
+
+[policy.bring]
+auto_approve_when_user_requested = true
+auto_approve_ai_suggested = false
+notify_partner_on_removal = true
+
+[policy.spending]
+monthly_ai_budget_euros = 10.00
+warn_at_percentage = 80

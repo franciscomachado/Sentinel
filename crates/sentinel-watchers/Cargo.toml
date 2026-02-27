@@ -1,0 +1,28 @@
+[package]
+name = "sentinel-watchers"
+description = "Event-driven watchers for email, calendar, tasks, departures, and more"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sentinel-core = { workspace = true }
+sentinel-membrane = { workspace = true }
+sentinel-memory = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+reqwest = { workspace = true }
+async-imap = { version = "0.11", default-features = false, features = ["runtime-tokio"] }
+tokio-native-tls = "0.3"
+native-tls = "0.2"
+futures-util = "0.3"
+toml = { workspace = true }
+
+[dev-dependencies]
+sqlx = { workspace = true }
+tempfile = "3"

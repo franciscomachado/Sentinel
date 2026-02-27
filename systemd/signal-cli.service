@@ -1,0 +1,13 @@
+[Unit]
+Description=Signal CLI JSON-RPC Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=signal-cli
+ExecStart=/usr/bin/signal-cli -a %I daemon --http localhost:8083
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

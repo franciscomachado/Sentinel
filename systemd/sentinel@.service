@@ -1,0 +1,29 @@
+[Unit]
+Description=Sentinel Personal Assistant Daemon for %i
+After=network-online.target radicale.service signal-cli.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sentinel-%i
+ExecStart=/usr/local/bin/sentinel daemon --user %i
+Restart=on-failure
+RestartSec=30
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/sentinel/%i
+ReadOnlyPaths=/home/sentinel/household
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+MemoryDenyWriteExecute=true
+SystemCallFilter=@system-service
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=default.target

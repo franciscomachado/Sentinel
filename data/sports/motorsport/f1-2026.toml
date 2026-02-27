@@ -1,0 +1,44 @@
+# Formula 1 - 2026 Season Calendar
+# Community-contributed data file
+
+[series]
+name = "Formula 1"
+id = "f1"
+season = 2026
+
+[[rounds]]
+round = 1
+name = "Australian Grand Prix"
+circuit = "Albert Park Circuit"
+city = "Melbourne"
+country = "Australia"
+timezone = "Australia/Melbourne"
+date_start = "2026-03-13"
+date_end = "2026-03-15"
+
+[[rounds.sessions]]
+name = "Practice 1"
+day = "2026-03-13"
+time = "12:30"
+
+[[rounds.sessions]]
+name = "Practice 2"
+day = "2026-03-13"
+time = "16:00"
+
+[[rounds.sessions]]
+name = "Practice 3"
+day = "2026-03-14"
+time = "12:30"
+
+[[rounds.sessions]]
+name = "Qualifying"
+day = "2026-03-14"
+time = "16:00"
+
+[[rounds.sessions]]
+name = "Race"
+day = "2026-03-15"
+time = "15:00"
+
+# Add more rounds as the calendar is confirmed

@@ -1,0 +1,14 @@
+[Unit]
+Description=Sentinel Personal Assistant Daemon
+Wants=network-online.target
+After=network-online.target signal-cli.service
+
+[Service]
+Type=simple
+ExecStart=%h/.cargo/bin/sentinel run
+Restart=on-failure
+RestartSec=30
+Environment="RUST_LOG=info,sentinel=debug"
+
+[Install]
+WantedBy=default.target

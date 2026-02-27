@@ -1,0 +1,31 @@
+# Sentinel — Standalone
+#
+# Runs only the Sentinel daemon. Use this if you already have
+# Radicale, OSRM, and/or signal-cli running on the host or
+# managed separately.
+#
+# Usage:
+#   cp .env.example .env   # fill in your API keys
+#   docker compose -f compose.standalone.yml up -d
+
+name: sentinel-standalone
+
+services:
+  sentinel:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - sentinel-data:/home/sentinel/.local/share/sentinel
+      - ./sentinel.toml:/home/sentinel/.config/sentinel/sentinel.toml:ro
+    ports:
+      - "127.0.0.1:8765:8765"   # dashboard — localhost only
+    # To reach host services (Radicale, OSRM, signal-cli) from the
+    # container, use `host.docker.internal` in sentinel.toml or:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  sentinel-data:

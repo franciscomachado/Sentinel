@@ -1,0 +1,35 @@
+[package]
+name = "sentinel-cli"
+description = "CLI interface, daemon lifecycle, and onboarding wizard"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "sentinel"
+path = "src/main.rs"
+
+[dependencies]
+sentinel-core = { workspace = true }
+sentinel-membrane = { workspace = true }
+sentinel-watchers = { workspace = true }
+sentinel-cortex = { workspace = true }
+sentinel-gate = { workspace = true }
+sentinel-memory = { workspace = true }
+sentinel-web = { workspace = true }
+sentinel-bring = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+toml = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+reqwest = { workspace = true }
+directories = { workspace = true }
+sqlx = { workspace = true }
+
+[features]
+default = ["bring"]
+bring = ["dep:sentinel-bring"]

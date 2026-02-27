@@ -1,0 +1,24 @@
+[package]
+name = "sentinel-cortex"
+description = "State compiler, prompt construction, LLM interaction, and response parsing"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sentinel-core = { workspace = true }
+sentinel-membrane = { workspace = true }
+sentinel-memory = { workspace = true }
+sentinel-watchers = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+reqwest = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+sqlx = { workspace = true }
+tempfile = "3"
