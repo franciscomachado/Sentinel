@@ -112,7 +112,7 @@ impl AiProvider for AnthropicClient {
         let parsed: LlmResponse = serde_json::from_str(&raw_text).with_context(|| {
             format!(
                 "failed to parse LLM JSON response: {}",
-                &raw_text[..raw_text.len().min(200)]
+                &raw_text[..raw_text.len().min(20000)]
             )
         })?;
 
