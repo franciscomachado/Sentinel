@@ -1,7 +1,6 @@
 use anyhow::Context;
 use async_trait::async_trait;
 use serde::Deserialize;
-
 use crate::prompt::LlmRequest;
 use crate::provider::AiProvider;
 use crate::response::LlmResponse;
@@ -25,8 +24,12 @@ struct ApiResponse {
 }
 
 #[derive(Debug, Deserialize)]
-struct ContentBlock {
-    text: String,
+#[serde(tag = "type", rename_all = "snake_case")]
+enum ContentBlock {
+    Text { text: String },
+    Thinking { thinking: String },
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,11 +46,21 @@ pub struct CortexResponse {
     pub raw_text: String,
 }
 
+fn extract_text(content: &[ContentBlock]) -> String {
+    content
+        .iter()
+        .find_map(|b| match b {
+            ContentBlock::Text { text } => Some(text.clone()),
+            _ => None,
+        })
+        .unwrap_or_default()
+}
+
 impl AnthropicClient {
     pub fn new(api_key: String, model: String, api_base: Option<String>) -> Self {
         let http = reqwest::Client::new();
         let api_base = api_base.unwrap_or_else(|| ANTHROPIC_API_URL.to_string());
-        Self {
+        Self { 
             http,
             api_key,
             model,
@@ -88,11 +101,7 @@ impl AiProvider for AnthropicClient {
 
         let api_response = self.send_request(&request).await?;
 
-        let raw_text = api_response
-            .content
-            .first()
-            .map(|b| b.text.clone())
-            .unwrap_or_default();
+        let raw_text = extract_text(&api_response.content);
 
         tracing::debug!(
             input_tokens = api_response.usage.input_tokens,
@@ -122,11 +131,7 @@ impl AiProvider for AnthropicClient {
 
     async fn chat(&self, request: LlmRequest) -> anyhow::Result<String> {
         let api_response = self.send_request(&request).await?;
-        Ok(api_response
-            .content
-            .first()
-            .map(|b| b.text.clone())
-            .unwrap_or_default())
+        Ok(extract_text(&api_response.content))
     }
 
     fn model(&self) -> &str {
