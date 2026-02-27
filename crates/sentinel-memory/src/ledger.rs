@@ -162,6 +162,22 @@ impl Ledger {
         rows.into_iter().map(|r| row_to_entry(r)).collect()
     }
 
+    pub async fn search_since(&self, query: &str, limit: u32, since: DateTime<Utc>) -> anyhow::Result<Vec<LedgerEntry>> {
+        let pattern = format!("%{query}%");
+        let since_str = since.to_rfc3339();
+        let rows: Vec<(String, String, String, String, String, String)> = sqlx::query_as(
+            "SELECT id, timestamp, category, content, tags, source
+             FROM ledger WHERE content LIKE ? AND timestamp >= ? ORDER BY timestamp DESC LIMIT ?",
+        )
+        .bind(&pattern)
+        .bind(&since_str)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter().map(|r| row_to_entry(r)).collect()
+    }
+
     /// Count entries by category.
     pub async fn count_by_category(&self, category: &LedgerCategory) -> anyhow::Result<i64> {
         let cat_str = category.to_string();

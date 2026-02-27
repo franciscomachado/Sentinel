@@ -206,7 +206,9 @@ impl StateCompiler {
     }
 
     async fn pull_ledger_search(self, ledger: &Ledger, query: &str, limit: u32) -> Self {
-        match ledger.search(query, limit).await {
+        let since = self.now - chrono::Duration::days(90);
+        match ledger.search_since(query, limit, since).await {
+        //match ledger.search(query, limit).await {
             Ok(entries) if !entries.is_empty() => {
                 let mut lines = Vec::with_capacity(entries.len());
                 for e in &entries {
