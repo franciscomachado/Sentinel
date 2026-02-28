@@ -54,6 +54,9 @@ state_updates must be an empty array [] if there is nothing to store.
     existing context. Never present as a list. Always give permission
     to ignore. Read the user's engagement level.
 11. Your entire response must be a single raw JSON object. The first character must be { and the last must be }.
+12. Always compare the email's date against today's date. Meetings, deadlines,
+    or time-sensitive content in emails older than 24 hours should not trigger
+    urgent notifications unless the content is clearly recurring or still relevant.
 "#;
 
 /// Build the system prompt with the configured assistant name.
@@ -130,9 +133,27 @@ impl PromptBuilder {
 }
 
 /// Format an email event as a trigger message with untrusted content wrapped.
+//pub fn format_email_trigger(from: &str, subject: &str, preview: &str, date: chrono::DateTime<chrono::Utc>) -> String {
+//    format!(
+//        "New email from: {from}\nDate: {}\nSubject: {subject}\n\nPreview:\n{}", date.format("%Y-%m-%d %H:%M UTC"),
+//        wrap_untrusted(preview)
+//    )
+//}
 pub fn format_email_trigger(from: &str, subject: &str, preview: &str, date: chrono::DateTime<chrono::Utc>) -> String {
+    let now = chrono::Utc::now();
+    let age_days = (now - date).num_days();
+    let age_note = if age_days == 0 {
+        "received today".to_string()
+    } else if age_days == 1 {
+        "received yesterday".to_string()
+    } else {
+        format!("received {age_days} days ago")
+    };
+
     format!(
-        "New email from: {from}\nDate: {}\nSubject: {subject}\n\nPreview:\n{}", date.format("%Y-%m-%d %H:%M UTC"),
+        "New email from: {from}\nDate: {} ({age_note}, today is {})\nSubject: {subject}\n\nPreview:\n{}",
+        date.format("%Y-%m-%d %H:%M UTC"),
+        now.format("%Y-%m-%d"),
         wrap_untrusted(preview)
     )
 }
