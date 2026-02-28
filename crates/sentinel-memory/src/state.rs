@@ -86,7 +86,7 @@ impl StateManager {
         sqlx::query(
             "INSERT INTO watcher_state (watcher_id, state_key, state_value, updated_at)
              VALUES (?, ?, ?, datetime('now'))
-             ON CONFLICT(watcher_id) DO UPDATE SET
+             ON CONFLICT(watcher_id, state_key) DO UPDATE SET
                 state_value = excluded.state_value,
                 updated_at = excluded.updated_at",
         )

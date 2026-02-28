@@ -1,10 +1,11 @@
 -- Persistent state for watchers and state compiler
 
 CREATE TABLE IF NOT EXISTS watcher_state (
-    watcher_id TEXT PRIMARY KEY,
+    watcher_id TEXT NOT NULL,
     state_key TEXT NOT NULL,
     state_value TEXT NOT NULL,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (watcher_id, state_key)
 );
 
 CREATE TABLE IF NOT EXISTS memories (
