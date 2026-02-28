@@ -206,27 +206,52 @@ impl ImapWatcher {
     }
 
     /// Get the highest UID in the mailbox.
+    //async fn get_max_uid(&self, session: &mut ImapSession) -> Result<u32> {
+    //    let uids = session
+    //        .uid_search("ALL")
+    //        .await
+    //        .context("UID SEARCH ALL")?;
+    //    Ok(uids.into_iter().max().unwrap_or(0))
+    //}
     async fn get_max_uid(&self, session: &mut ImapSession) -> Result<u32> {
+        let since = chrono::Utc::now() - chrono::Duration::days(30);
+        let date_str = since.format("%d-%b-%Y").to_string();
         let uids = session
-            .uid_search("ALL")
-            .await
-            .context("UID SEARCH ALL")?;
+        .uid_search(&format!("SINCE {date_str}"))
+        .await
+        .context("UID SEARCH SINCE")?;
         Ok(uids.into_iter().max().unwrap_or(0))
     }
 
     /// Search for UIDs greater than the highwater mark.
-    async fn search_new_uids(
-        &self,
-        session: &mut ImapSession,
-        since_uid: u32,
-    ) -> Result<Vec<u32>> {
-        let query = format!("UID {}:*", since_uid + 1);
+    //async fn search_new_uids(
+    //    &self,
+    //    session: &mut ImapSession,
+    //    since_uid: u32,
+    //) -> Result<Vec<u32>> {
+    //    let query = format!("UID {}:*", since_uid + 1);
+    //    let uids = session
+    //        .uid_search(&query)
+    //        .await
+    //        .context("UID SEARCH new")?;
+//
+    //    // Filter out the since_uid itself (IMAP range is inclusive)
+    //    let mut result: Vec<u32> = uids
+    //        .into_iter()
+    //        .filter(|&uid| uid > since_uid)
+    //        .collect();
+    //    result.sort();
+    //    Ok(result)
+    //}
+    async fn search_new_uids(&self, session: &mut ImapSession, since_uid: u32) -> Result<Vec<u32>> {
+        let since = chrono::Utc::now() - chrono::Duration::days(30);
+        let date_str = since.format("%d-%b-%Y").to_string();
+        let query = format!("UID {}:* SINCE {}", since_uid + 1, date_str);
         let uids = session
             .uid_search(&query)
             .await
             .context("UID SEARCH new")?;
-
-        // Filter out the since_uid itself (IMAP range is inclusive)
+    
         let mut result: Vec<u32> = uids
             .into_iter()
             .filter(|&uid| uid > since_uid)

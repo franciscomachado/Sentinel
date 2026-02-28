@@ -1,6 +1,5 @@
 use serde::Serialize;
 use sentinel_core::sanitize::wrap_untrusted;
-use chrono::{DateTime, Utc};
 
 /// The core system prompt template. `{name}` is replaced with the assistant's
 /// configured name (defaults to "Sentinel").
