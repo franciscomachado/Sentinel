@@ -654,6 +654,7 @@ mod tests {
             from: "boss@work.com".into(),
             subject: "Q4 planning".into(),
             preview: "Let's discuss...".into(),
+            timestamp: chrono::Utc::now(),
         });
 
         let result = StateCompiler::new(&config)

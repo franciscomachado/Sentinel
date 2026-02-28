@@ -30,6 +30,7 @@ pub struct EmailTrigger {
     pub from: String,
     pub subject: String,
     pub preview: String,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 pub struct DepartureTrigger {
@@ -60,6 +61,7 @@ pub fn local_triage(event: &WatchEvent) -> Triage {
                 from: email.from.clone(),
                 subject: email.subject.clone(),
                 preview: email.preview.clone(),
+                timestamp: email.timestamp,
             }))
         }
 

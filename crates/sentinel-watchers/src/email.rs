@@ -327,7 +327,7 @@ impl ImapWatcher {
             uid,
             from = %event.from,
             subject = %event.subject,
-            date = %event.timestamp.format("%Y-%m-%d"),
+            date = %event.timestamp.format("%Y-%m-%d %H:%M UTC"),
             urgency = ?event.urgency,
             "new email"
         );
