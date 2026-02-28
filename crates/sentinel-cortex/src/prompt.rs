@@ -130,9 +130,9 @@ impl PromptBuilder {
 }
 
 /// Format an email event as a trigger message with untrusted content wrapped.
-pub fn format_email_trigger(from: &str, subject: &str, preview: &str) -> String {
+pub fn format_email_trigger(from: &str, subject: &str, preview: &str, timestamp: chrono::DateTime<chrono::Utc>) -> String {
     format!(
-        "New email from: {from}\nSubject: {subject}\n\nPreview:\n{}",
+        "New email from: {from}\nDate: {}\nSubject: {subject}\n\nPreview:\n{}", date.format("%Y-%m-%d %H:%M UTC"),
         wrap_untrusted(preview)
     )
 }

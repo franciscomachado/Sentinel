@@ -225,7 +225,7 @@ impl Daemon {
                 prompt::format_schedule_trigger("monthly_reflection")
             }
             TriggerType::EmailTriage(email) => {
-                prompt::format_email_trigger(&email.from, &email.subject, &email.preview)
+                prompt::format_email_trigger(&email.from, &email.subject, &email.preview, email.timestamp)
             }
             TriggerType::DepartureAlert(dep) => {
                 prompt::format_departure_trigger(

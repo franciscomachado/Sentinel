@@ -298,13 +298,25 @@ impl ImapWatcher {
 
         let urgency = self.classify_urgency(&from);
 
+        let timestamp = envelope
+        .date
+        .as_ref()
+        .and_then(|d| {
+            let s = String::from_utf8_lossy(d);
+            chrono::DateTime::parse_from_rfc2822(s.trim())
+            .ok()
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+        })
+        .unwrap_or_else(chrono::Utc::now);
+
         let event = EmailEvent {
             id: EmailId::new(self.account.name.clone(), uid),
             from: sanitize_text(&from),
             to,
             subject: sanitize_text(&subject),
             preview,
-            timestamp: chrono::Utc::now(),
+            //timestamp: chrono::Utc::now(),
+            timestamp,
             is_reply,
             has_attachments,
             urgency,
@@ -315,6 +327,7 @@ impl ImapWatcher {
             uid,
             from = %event.from,
             subject = %event.subject,
+            date = %event.timestamp.format("%Y-%m-%d"),
             urgency = ?event.urgency,
             "new email"
         );
