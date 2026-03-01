@@ -136,6 +136,7 @@ impl StateCompiler {
                 self = self.pull_sports(sports_config).await;
                 self = self.pull_cultural(cultural_config).await;
                 self = self.pull_household(household).await;
+                self = self.pull_dishes(household).await;
             }
             TriggerType::EmailTriage(email) => {
                 // Search ledger for history with this sender
@@ -151,6 +152,8 @@ impl StateCompiler {
                 self = self.pull_rhythms_flagged(rhythm_engine).await;
                 self = self.pull_tasks_today(task_store).await;
                 self = self.pull_travel_mode(state).await;
+                self = self.pull_household(household).await;
+                self = self.pull_dishes(household).await;
             }
             TriggerType::UserNote(_) => {
                 // Freeform input — broad context to help classify
@@ -165,7 +168,7 @@ impl StateCompiler {
                 self = self.pull_tasks_today(task_store).await;
                 self = self.pull_travel_mode(state).await;
             }
-            TriggerType::CalendarChange | TriggerType::TaskEvent => {
+            TriggerType::CalendarChange | TriggerType::TaskEvent(_) => {
                 self = self.pull_ledger_hours(ledger, 12, 15).await;
                 self = self.pull_memories(state).await;
                 self = self.pull_tasks_today(task_store).await;
@@ -418,6 +421,16 @@ impl StateCompiler {
         self.add_section("Cultural Events", &text)
     }
 
+    /// Pull the dish catalog — used for meal-plan suggestion queries.
+    async fn pull_dishes(self, store: Option<&sentinel_memory::household::HouseholdStore>) -> Self {
+        let Some(store) = store else { return self };
+        let catalog = store.format_dish_catalog().await;
+        if catalog.is_empty() {
+            return self;
+        }
+        self.add_section("Dish Catalog", &catalog)
+    }
+
     /// Pull household shared surface — meals, shopping list, family events.
     async fn pull_household(self, store: Option<&sentinel_memory::household::HouseholdStore>) -> Self {
         let Some(store) = store else { return self };
@@ -556,6 +569,7 @@ mod tests {
             sports: None,
             cultural: None,
             household: None,
+            schedule: vec![],
         }
     }
 

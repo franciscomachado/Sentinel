@@ -5,7 +5,7 @@
 /// owning user, read-only via systemd filesystem isolation for others).
 
 use chrono::{Datelike, Utc};
-use sentinel_core::types::{HouseholdTask, MealEntry, ShoppingItem};
+use sentinel_core::types::{Dish, HouseholdTask, MealEntry, ShoppingItem};
 use sqlx::SqlitePool;
 
 /// Handle to the household shared database.
@@ -250,6 +250,94 @@ impl HouseholdStore {
         Ok(rows.into_iter().map(|r| r.into()).collect())
     }
 
+    // ── Dishes ─────────────────────────────────────────────────────
+
+    /// Add a dish to the recipe catalog. Returns the new row id.
+    pub async fn add_dish(&self, dish: &Dish) -> anyhow::Result<i64> {
+        let id = sqlx::query_scalar::<_, i64>(
+            "INSERT INTO dishes (name, protein, carb, notes)
+             VALUES (?, ?, ?, ?)
+             RETURNING id"
+        )
+        .bind(&dish.name)
+        .bind(dish.protein.as_deref())
+        .bind(dish.carb.as_deref())
+        .bind(dish.notes.as_deref())
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(id)
+    }
+
+    /// Return all dishes in the catalog ordered by name.
+    pub async fn list_dishes(&self) -> anyhow::Result<Vec<Dish>> {
+        let rows = sqlx::query_as::<_, DishRow>(
+            "SELECT id, name, protein, carb, notes, last_cooked, frequency
+             FROM dishes ORDER BY name"
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|r| r.into()).collect())
+    }
+
+    /// Record that a dish was cooked today; increments its frequency counter.
+    pub async fn mark_dish_cooked(&self, id: i64) -> anyhow::Result<()> {
+        let today = Utc::now().format("%Y-%m-%d").to_string();
+        sqlx::query(
+            "UPDATE dishes SET last_cooked = ?, frequency = frequency + 1 WHERE id = ?"
+        )
+        .bind(&today)
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Return up to `count` dishes ordered for variety:
+    /// 1. Never cooked (NULL `last_cooked`)
+    /// 2. Not cooked in 14+ days
+    /// 3. Not cooked in 7+ days
+    /// 4. Recently cooked
+    /// Within each tier, lower frequency wins; ties broken randomly.
+    pub async fn suggest_dishes(&self, count: usize) -> anyhow::Result<Vec<Dish>> {
+        let rows = sqlx::query_as::<_, DishRow>(
+            "SELECT id, name, protein, carb, notes, last_cooked, frequency
+             FROM dishes
+             ORDER BY
+               CASE
+                 WHEN last_cooked IS NULL THEN 0
+                 WHEN julianday('now') - julianday(last_cooked) > 14 THEN 1
+                 WHEN julianday('now') - julianday(last_cooked) > 7  THEN 2
+                 ELSE 3
+               END ASC,
+               frequency ASC,
+               RANDOM()
+             LIMIT ?"
+        )
+        .bind(count as i64)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|r| r.into()).collect())
+    }
+
+    /// Format the dish catalog for the state compiler (name + protein/carb tags).
+    pub async fn format_dish_catalog(&self) -> String {
+        match self.list_dishes().await {
+            Ok(dishes) if !dishes.is_empty() => {
+                let lines: Vec<String> = dishes.iter().map(|d| {
+                    let protein = d.protein.as_deref()
+                        .map(|p| format!(" protein:{p}"))
+                        .unwrap_or_default();
+                    let carb = d.carb.as_deref()
+                        .map(|c| format!(" carb:{c}"))
+                        .unwrap_or_default();
+                    format!("- {}{protein}{carb}", d.name)
+                }).collect();
+                lines.join("\n")
+            }
+            _ => String::new(),
+        }
+    }
+
     // ── Formatting ─────────────────────────────────────────────────
 
     /// Sync ingredients from this week's meal plan to the shopping list.
@@ -435,6 +523,31 @@ impl From<HouseholdTaskRow> for HouseholdTask {
             schedule_type: r.schedule_type,
             schedule_data: r.schedule_data,
             next_trigger: r.next_trigger,
+        }
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct DishRow {
+    id: i64,
+    name: String,
+    protein: Option<String>,
+    carb: Option<String>,
+    notes: Option<String>,
+    #[allow(dead_code)]
+    last_cooked: Option<String>,
+    #[allow(dead_code)]
+    frequency: i64,
+}
+
+impl From<DishRow> for Dish {
+    fn from(r: DishRow) -> Self {
+        Dish {
+            id: Some(r.id),
+            name: r.name,
+            protein: r.protein,
+            carb: r.carb,
+            notes: r.notes,
         }
     }
 }
@@ -636,5 +749,59 @@ mod tests {
         // Syncing again should add 0 (no new ingredients)
         let added2 = store.sync_meal_ingredients_to_shopping().await.unwrap();
         assert_eq!(added2, 0);
+    }
+
+    #[tokio::test]
+    async fn dish_catalog_crud() {
+        let (pool, _dir) = test_db().await;
+        let store = HouseholdStore::new(pool, "john".into());
+
+        let dish = Dish {
+            id: None,
+            name: "Arroz de polvo".into(),
+            protein: Some("polvo".into()),
+            carb: Some("arroz".into()),
+            notes: None,
+        };
+        let id = store.add_dish(&dish).await.unwrap();
+        assert!(id > 0);
+
+        let dishes = store.list_dishes().await.unwrap();
+        assert_eq!(dishes.len(), 1);
+        assert_eq!(dishes[0].name, "Arroz de polvo");
+        assert_eq!(dishes[0].protein.as_deref(), Some("polvo"));
+        assert_eq!(dishes[0].carb.as_deref(), Some("arroz"));
+
+        store.mark_dish_cooked(id).await.unwrap();
+
+        // format_dish_catalog should include the dish
+        let catalog = store.format_dish_catalog().await;
+        assert!(catalog.contains("Arroz de polvo"));
+        assert!(catalog.contains("protein:polvo"));
+    }
+
+    #[tokio::test]
+    async fn suggest_dishes_ordering() {
+        let (pool, _dir) = test_db().await;
+        let store = HouseholdStore::new(pool, "john".into());
+
+        for name in &["Dish A", "Dish B", "Dish C", "Dish D", "Dish E"] {
+            store.add_dish(&Dish { id: None, name: name.to_string(), protein: None, carb: None, notes: None }).await.unwrap();
+        }
+
+        // Mark two as recently cooked
+        let dishes = store.list_dishes().await.unwrap();
+        store.mark_dish_cooked(dishes[0].id.unwrap()).await.unwrap();
+        store.mark_dish_cooked(dishes[1].id.unwrap()).await.unwrap();
+
+        let suggestions = store.suggest_dishes(5).await.unwrap();
+        assert_eq!(suggestions.len(), 5);
+
+        // Never-cooked dishes should come before recently-cooked ones
+        let recently_cooked_names: std::collections::HashSet<_> =
+            vec![dishes[0].name.as_str(), dishes[1].name.as_str()].into_iter().collect();
+        let first_two_names: Vec<&str> = suggestions[..3].iter().map(|d| d.name.as_str()).collect();
+        let all_recent_at_end = first_two_names.iter().all(|n| !recently_cooked_names.contains(n));
+        assert!(all_recent_at_end, "never-cooked dishes should come first");
     }
 }

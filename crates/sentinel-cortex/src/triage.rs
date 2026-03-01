@@ -22,8 +22,13 @@ pub enum TriggerType {
     SignalQuery(SignalTrigger),
     UserNote(UserNoteTrigger),
     CalendarChange,
-    TaskEvent,
+    TaskEvent(TaskEventTrigger),
     WeatherUpdate,
+}
+
+pub struct TaskEventTrigger {
+    pub task_id: String,
+    pub kind: sentinel_core::events::TaskEventKind,
 }
 
 pub struct EmailTrigger {
@@ -67,7 +72,10 @@ pub fn local_triage(event: &WatchEvent) -> Triage {
 
         WatchEvent::Calendar(_change) => Triage::NeedsAI(TriggerType::CalendarChange),
 
-        WatchEvent::Task(_task_event) => Triage::NeedsAI(TriggerType::TaskEvent),
+        WatchEvent::Task(task_event) => Triage::NeedsAI(TriggerType::TaskEvent(TaskEventTrigger {
+            task_id: task_event.task_id.0.clone(),
+            kind: task_event.kind.clone(),
+        })),
 
         WatchEvent::Departure(dep) => {
             Triage::NeedsAI(TriggerType::DepartureAlert(DepartureTrigger {

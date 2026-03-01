@@ -244,8 +244,16 @@ impl Daemon {
             TriggerType::CalendarChange => {
                 prompt::format_schedule_trigger("calendar_change")
             }
-            TriggerType::TaskEvent => {
-                prompt::format_schedule_trigger("task_event")
+            TriggerType::TaskEvent(t) => {
+                let kind_str = match t.kind {
+                    sentinel_core::events::TaskEventKind::Due => "due",
+                    sentinel_core::events::TaskEventKind::Overdue => "overdue",
+                    sentinel_core::events::TaskEventKind::Completed => "completed",
+                };
+                match self.task_store.get(&t.task_id).await {
+                    Ok(Some(task)) => prompt::format_task_trigger(&t.task_id, kind_str, &task.title),
+                    _ => format!("Task {kind_str}: {} (details unavailable)", t.task_id),
+                }
             }
             TriggerType::WeatherUpdate => {
                 prompt::format_schedule_trigger("weather_update")
@@ -673,6 +681,43 @@ impl Daemon {
                     reminder.message,
                 ));
             }
+
+            // === HOUSEHOLD ===
+            Capability::DishAdd(dish) => {
+                if let Some(ref hh) = self.household {
+                    match hh.add_dish(dish).await {
+                        Ok(id) => {
+                            tracing::info!(%id, name = %dish.name, "dish added to catalog");
+                            self.notifier.info(&format!(
+                                "🍽 '{}' added to dish catalog",
+                                dish.name,
+                            ));
+                        }
+                        Err(e) => tracing::error!(error = %e, name = %dish.name, "failed to add dish"),
+                    }
+                } else {
+                    tracing::warn!(name = %dish.name, "household not configured — cannot add dish");
+                }
+            }
+            Capability::MealPlanSet(entries) => {
+                if let Some(ref hh) = self.household {
+                    let mut written = 0usize;
+                    for entry in entries {
+                        match hh.add_meal(entry).await {
+                            Ok(_) => written += 1,
+                            Err(e) => tracing::error!(
+                                error = %e,
+                                date = %entry.date,
+                                "failed to write meal plan entry"
+                            ),
+                        }
+                    }
+                    tracing::info!(count = written, "meal plan entries written");
+                    self.notifier.info(&format!("📅 {} meal plan entries written", written));
+                } else {
+                    tracing::warn!("household not configured — cannot write meal plan");
+                }
+            }
         }
     }
 
@@ -923,37 +968,12 @@ impl Daemon {
 
         // Spawn TimeWatcher — fires scheduled triggers (briefings, reflections)
         {
-            use sentinel_core::schedule::{ScheduleEntry, ScheduledTriggerKind};
-
             let tz_offset = parse_tz_offset(&self.config.user.timezone);
-            let schedule = vec![
-                ScheduleEntry::Daily {
-                    time: "07:00".into(),
-                    trigger: ScheduledTriggerKind::MorningBriefing,
-                },
-                ScheduleEntry::Daily {
-                    time: "06:50".into(),
-                    trigger: ScheduledTriggerKind::MorningReflection,
-                },
-                ScheduleEntry::Weekly {
-                    day: "sunday".into(),
-                    time: "18:00".into(),
-                    trigger: ScheduledTriggerKind::WeeklyPlanning,
-                },
-                ScheduleEntry::Weekly {
-                    day: "sunday".into(),
-                    time: "17:50".into(),
-                    trigger: ScheduledTriggerKind::WeeklyReflection,
-                },
-                ScheduleEntry::Interval {
-                    every_seconds: 30 * 24 * 3600,
-                    trigger: ScheduledTriggerKind::MonthlyReflection,
-                },
-                ScheduleEntry::Interval {
-                    every_seconds: 6 * 3600,
-                    trigger: ScheduledTriggerKind::RhythmEngineRun,
-                },
-            ];
+            let schedule = if self.config.schedule.is_empty() {
+                default_schedule()
+            } else {
+                self.config.schedule.clone()
+            };
 
             let time_watcher = sentinel_watchers::time::TimeWatcher::new(schedule, tz_offset);
             let time_tx = tx.clone();
@@ -1115,7 +1135,7 @@ fn trigger_type_label(t: &TriggerType) -> &'static str {
         TriggerType::SignalQuery(_) => "Signal query",
         TriggerType::UserNote(_) => "User note",
         TriggerType::CalendarChange => "Calendar change",
-        TriggerType::TaskEvent => "Task event",
+        TriggerType::TaskEvent(_) => "Task event",
         TriggerType::WeatherUpdate => "Weather update",
     }
 }
@@ -1197,4 +1217,43 @@ fn parse_tz_offset(tz: &str) -> chrono::FixedOffset {
     chrono::FixedOffset::east_opt(offset_hours * 3600).unwrap_or_else(|| {
         chrono::FixedOffset::east_opt(0).unwrap()
     })
+}
+
+/// Default schedule used when none is specified in the config file.
+fn default_schedule() -> Vec<sentinel_core::schedule::ScheduleEntry> {
+    use sentinel_core::schedule::{ScheduleEntry, ScheduledTriggerKind};
+    vec![
+        // Morning reflection at 06:50 — looks back at overnight activity
+        ScheduleEntry::Daily {
+            time: "06:50".into(),
+            trigger: ScheduledTriggerKind::MorningReflection,
+        },
+        // Morning briefing at 07:00 — forward-looking day summary
+        ScheduleEntry::Daily {
+            time: "07:00".into(),
+            trigger: ScheduledTriggerKind::MorningBriefing,
+        },
+        // Sunday 17:50 — week in review
+        ScheduleEntry::Weekly {
+            day: "sunday".into(),
+            time: "17:50".into(),
+            trigger: ScheduledTriggerKind::WeeklyReflection,
+        },
+        // Sunday 18:00 — week ahead planning
+        ScheduleEntry::Weekly {
+            day: "sunday".into(),
+            time: "18:00".into(),
+            trigger: ScheduledTriggerKind::WeeklyPlanning,
+        },
+        // Monthly reflection — every 30 days
+        ScheduleEntry::Interval {
+            every_seconds: 30 * 24 * 3600,
+            trigger: ScheduledTriggerKind::MonthlyReflection,
+        },
+        // Rhythm engine — every 6 hours
+        ScheduleEntry::Interval {
+            every_seconds: 6 * 3600,
+            trigger: ScheduledTriggerKind::RhythmEngineRun,
+        },
+    ]
 }

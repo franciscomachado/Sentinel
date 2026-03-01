@@ -7,9 +7,11 @@
 
 use anyhow::{Context, Result};
 use sentinel_core::config::SentinelConfig;
+use sentinel_core::types::Dish;
 use sentinel_cortex::prompt::{LlmRequest, Message};
 use sentinel_cortex::provider::AiProvider;
 use sentinel_gate::signal::SignalClient;
+use sentinel_memory::household::HouseholdStore;
 use sentinel_memory::state::StateManager;
 use sqlx::SqlitePool;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
@@ -20,6 +22,7 @@ enum Stage {
     Welcome,
     Household,
     FoodPreferences,
+    DishCatalog,
     Schedule,
     Interests,
     Notifications,
@@ -31,7 +34,8 @@ impl Stage {
         match self {
             Stage::Welcome => Stage::Household,
             Stage::Household => Stage::FoodPreferences,
-            Stage::FoodPreferences => Stage::Schedule,
+            Stage::FoodPreferences => Stage::DishCatalog,
+            Stage::DishCatalog => Stage::Schedule,
             Stage::Schedule => Stage::Interests,
             Stage::Interests => Stage::Notifications,
             Stage::Notifications => Stage::Complete,
@@ -55,17 +59,21 @@ Rules:
 
 After each user reply, respond with JSON at the end of your message (on a new line, wrapped in triple backticks with json):
 ```json
-{"memories": ["fact 1", "fact 2"], "tags": ["topic"], "done_with_stage": true/false}
+{"memories": ["fact 1", "fact 2"], "tags": ["topic"], "done_with_stage": true/false, "dishes": []}
 ```
 
 "memories" = facts to remember (empty array if nothing new learned)
 "tags" = topic tags for the memories (e.g. "household", "food", "schedule")
 "done_with_stage" = true when you've covered enough for the current topic
+"dishes" = during the dish_catalog stage only: structured list of dishes mentioned this turn, e.g.
+  [{"name": "Arroz de polvo", "protein": "polvo", "carb": "arroz"}, {"name": "Frango assado", "protein": "frango", "carb": "batata"}]
+  Leave as [] for all other stages.
 
 Current stage: {stage}
 Topics to cover per stage:
 - household: who lives with them, ages, pets
 - food: cooking frequency, regular dishes, dietary restrictions, partner preferences
+- dish_catalog: list 5-15 dishes they cook regularly — for each dish include name, protein source, and carb; for this stage, populate the `dishes` JSON field (see below)
 - schedule: work hours, commute, morning routine, evening routine
 - interests: hobbies, sports, cultural interests, weekend activities
 - notifications: when they don't want to be disturbed, how urgent is urgent
@@ -79,6 +87,7 @@ pub struct SetupWizard {
     signal: SignalClient,
     client: Box<dyn AiProvider>,
     state: StateManager,
+    household: HouseholdStore,
     user_number: String,
 }
 
@@ -96,11 +105,13 @@ impl SetupWizard {
             .context("At least one allowed Signal number is required")?
             .clone();
 
+        let user_id = config.user.name.to_lowercase();
         Ok(Self {
             config: config.clone(),
             signal,
             client,
-            state: StateManager::new(pool),
+            state: StateManager::new(pool.clone()),
+            household: HouseholdStore::new(pool, user_id),
             user_number,
         })
     }
@@ -197,6 +208,24 @@ impl SetupWizard {
                             tracing::warn!(error = %e, "failed to persist onboarding memory");
                         }
                     }
+                }
+
+                // Persist any dishes extracted during the dish_catalog stage
+                if !meta.dishes.is_empty() {
+                    for d in &meta.dishes {
+                        let dish = Dish {
+                            id: None,
+                            name: d.name.clone(),
+                            protein: d.protein.clone(),
+                            carb: d.carb.clone(),
+                            notes: d.notes.clone(),
+                        };
+                        match self.household.add_dish(&dish).await {
+                            Ok(_) => known_facts.push(format!("Dish in catalog: {}", dish.name)),
+                            Err(e) => tracing::warn!(error = %e, dish = %dish.name, "failed to save dish"),
+                        }
+                    }
+                    println!("Saved {} dishes to catalog.", meta.dishes.len());
                 }
 
                 if meta.done_with_stage {
@@ -350,6 +379,16 @@ struct OnboardingMeta {
     memories: Vec<String>,
     tags: Vec<String>,
     done_with_stage: bool,
+    dishes: Vec<OnboardingDish>,
+}
+
+/// A dish extracted from the dish_catalog stage.
+#[derive(Debug)]
+struct OnboardingDish {
+    name: String,
+    protein: Option<String>,
+    carb: Option<String>,
+    notes: Option<String>,
 }
 
 /// Parse Claude's response into visible text and structured metadata.
@@ -375,8 +414,22 @@ fn parse_onboarding_response(response: &str) -> (String, Option<OnboardingMeta>)
                 let done_with_stage = parsed.get("done_with_stage")
                     .and_then(|d| d.as_bool())
                     .unwrap_or(false);
+                let dishes = parsed.get("dishes")
+                    .and_then(|d| d.as_array())
+                    .map(|arr| {
+                        arr.iter().filter_map(|v| {
+                            let name = v.get("name").and_then(|n| n.as_str())?.to_string();
+                            Some(OnboardingDish {
+                                name,
+                                protein: v.get("protein").and_then(|p| p.as_str()).map(String::from),
+                                carb: v.get("carb").and_then(|c| c.as_str()).map(String::from),
+                                notes: v.get("notes").and_then(|n| n.as_str()).map(String::from),
+                            })
+                        }).collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
 
-                return (visible, Some(OnboardingMeta { memories, tags, done_with_stage }));
+                return (visible, Some(OnboardingMeta { memories, tags, done_with_stage, dishes }));
             }
         }
     }
@@ -434,6 +487,8 @@ mod tests {
         stage = stage.next();
         assert_eq!(stage, Stage::FoodPreferences);
         stage = stage.next();
+        assert_eq!(stage, Stage::DishCatalog);
+        stage = stage.next();
         assert_eq!(stage, Stage::Schedule);
         stage = stage.next();
         assert_eq!(stage, Stage::Interests);
@@ -443,5 +498,23 @@ mod tests {
         assert_eq!(stage, Stage::Complete);
         stage = stage.next();
         assert_eq!(stage, Stage::Complete);
+    }
+
+    #[test]
+    fn parse_response_with_dishes() {
+        let response = "Great — got those two dishes!\n\
+                        ```json\n\
+                        {\"memories\": [], \"tags\": [\"food\"], \"done_with_stage\": false, \
+                        \"dishes\": [{\"name\": \"Arroz de polvo\", \"protein\": \"polvo\", \"carb\": \"arroz\"}, \
+                        {\"name\": \"Frango assado\", \"protein\": \"frango\", \"carb\": \"batata\"}]}\n\
+                        ```";
+        let (visible, meta) = parse_onboarding_response(response);
+        assert!(visible.contains("Great"));
+        let meta = meta.unwrap();
+        assert_eq!(meta.dishes.len(), 2);
+        assert_eq!(meta.dishes[0].name, "Arroz de polvo");
+        assert_eq!(meta.dishes[0].protein.as_deref(), Some("polvo"));
+        assert_eq!(meta.dishes[0].carb.as_deref(), Some("arroz"));
+        assert_eq!(meta.dishes[1].name, "Frango assado");
     }
 }

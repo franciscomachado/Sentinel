@@ -20,6 +20,9 @@ pub struct SentinelConfig {
     pub sports: Option<SportsConfig>,
     pub cultural: Option<CulturalConfig>,
     pub household: Option<HouseholdConfig>,
+    /// Override the default schedule. When absent, a sensible default schedule is used.
+    #[serde(default)]
+    pub schedule: Vec<crate::schedule::ScheduleEntry>,
 }
 
 /// AI provider configuration.

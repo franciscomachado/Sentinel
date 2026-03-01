@@ -152,3 +152,50 @@ max_writes_per_hour = 20
 # name = "Formula 1"
 # interest = "follow"
 # notify = "each_session"
+
+# ── Schedule ─────────────────────────────────────────────────────────────────
+# Override the default schedule. If this section is absent, these defaults apply:
+#
+#   06:50 daily   — MorningReflection  (looks back at overnight activity)
+#   07:00 daily   — MorningBriefing    (forward-looking day summary)
+#   17:50 sunday  — WeeklyReflection   (week in review)
+#   18:00 sunday  — WeeklyPlanning     (week ahead)
+#   every 30 days — MonthlyReflection
+#   every 6 hours — RhythmEngineRun    (internal, no notification)
+#
+# Trigger types: MorningReflection, MorningBriefing, WeeklyReflection,
+#                WeeklyPlanning, MonthlyReflection, RhythmEngineRun
+#
+# Example — shift the morning pair to 07:20/07:30 and move weekly to Saturday:
+#
+# [[schedule]]
+# type = "Daily"
+# time = "07:20"
+# trigger = "MorningReflection"
+#
+# [[schedule]]
+# type = "Daily"
+# time = "07:30"
+# trigger = "MorningBriefing"
+#
+# [[schedule]]
+# type = "Weekly"
+# day = "saturday"
+# time = "17:00"
+# trigger = "WeeklyReflection"
+#
+# [[schedule]]
+# type = "Weekly"
+# day = "saturday"
+# time = "17:10"
+# trigger = "WeeklyPlanning"
+#
+# [[schedule]]
+# type = "Interval"
+# every_seconds = 2592000   # 30 days
+# trigger = "MonthlyReflection"
+#
+# [[schedule]]
+# type = "Interval"
+# every_seconds = 21600     # 6 hours
+# trigger = "RhythmEngineRun"

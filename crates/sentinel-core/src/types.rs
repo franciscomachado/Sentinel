@@ -170,6 +170,29 @@ pub struct MealEntry {
     pub created_by: String,
 }
 
+/// A dish in the household recipe catalog.
+///
+/// Populated through onboarding, Signal instructions ("add dish: …"), or manual
+/// editing. Meal-plan suggestions are drawn from this catalog, weighted by
+/// recency, frequency, and balance across protein/carb types.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Dish {
+    /// Database id (None for unsaved dishes).
+    #[serde(default)]
+    pub id: Option<i64>,
+    /// Name of the dish, e.g. "Arroz de polvo".
+    pub name: String,
+    /// Primary protein source, e.g. "polvo", "frango", "salmão".
+    #[serde(default)]
+    pub protein: Option<String>,
+    /// Primary carbohydrate, e.g. "arroz", "massa", "batata".
+    #[serde(default)]
+    pub carb: Option<String>,
+    /// Free-form notes (seasonality, allergens, prep time, etc.).
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
 /// A shopping list item with provenance tracking.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShoppingItem {

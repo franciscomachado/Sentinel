@@ -94,6 +94,20 @@ pub enum Command {
         #[arg(long, short = 't')]
         r#type: String,
     },
+
+    /// Manage tasks and reminders
+    Tasks {
+        #[command(subcommand)]
+        action: TasksAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum TasksAction {
+    /// List all active (non-completed) tasks
+    List,
+    /// List tasks that are due now or overdue
+    Due,
 }
 
 #[derive(Subcommand)]

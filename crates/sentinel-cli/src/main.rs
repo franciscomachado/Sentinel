@@ -159,6 +159,9 @@ async fn main() -> Result<()> {
         Command::ValidateData { path, r#type } => {
             handle_validate_data(&path, &r#type)
         }
+        Command::Tasks { action } => {
+            handle_tasks(action).await
+        }
     }
 }
 
@@ -491,6 +494,47 @@ fn load_config(explicit: Option<&std::path::Path>) -> Result<SentinelConfig> {
         );
     }
     Ok(SentinelConfig::load(&path)?)
+}
+
+async fn handle_tasks(action: commands::TasksAction) -> Result<()> {
+    use commands::TasksAction;
+    let pool = open_db().await?;
+    let store = sentinel_memory::tasks::TaskStore::new(pool);
+
+    match action {
+        TasksAction::List => {
+            let tasks = store.list_active().await?;
+            if tasks.is_empty() {
+                println!("No active tasks.");
+            } else {
+                println!("{} active task(s):\n", tasks.len());
+                for t in &tasks {
+                    let due = t.next_trigger
+                        .map(|dt| format!("  next: {}", dt.format("%Y-%m-%d %H:%M UTC")))
+                        .unwrap_or_else(|| "  next: unscheduled".into());
+                    let notes = t.notes.as_deref()
+                        .map(|n| format!("  notes: {n}\n"))
+                        .unwrap_or_default();
+                    println!("[{}] {} ({:?})\n{due}\n{notes}", t.id, t.title, t.urgency);
+                }
+            }
+        }
+        TasksAction::Due => {
+            let tasks = store.list_due().await?;
+            if tasks.is_empty() {
+                println!("No tasks currently due.");
+            } else {
+                println!("{} due/overdue task(s):\n", tasks.len());
+                for t in &tasks {
+                    let trigger_str = t.next_trigger
+                        .map(|dt| dt.format("%Y-%m-%d %H:%M UTC").to_string())
+                        .unwrap_or_else(|| "?".into());
+                    println!("[{}] {} — was due {}", t.id, t.title, trigger_str);
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn handle_validate_data(path: &str, data_type: &str) -> Result<()> {

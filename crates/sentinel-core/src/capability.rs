@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::types::Urgency;
+use crate::types::{Dish, MealEntry, Urgency};
 
 /// All possible actions Sentinel can take. Exhaustive. No wildcards.
 ///
@@ -30,6 +30,12 @@ pub enum Capability {
     EmailDraft(EmailDraft),
     EmailReply(EmailId, DraftReply),
     SignalReply(String),
+
+    // === HOUSEHOLD (require human approval) ===
+    /// Add a dish to the household recipe catalog.
+    DishAdd(Dish),
+    /// Write a confirmed set of meal-plan entries (replaces any existing entries for those dates).
+    MealPlanSet(Vec<MealEntry>),
 
     // === NEVER (don't exist, can't exist) ===
     // ExecuteCommand    — NOT IN THE ENUM
@@ -63,6 +69,8 @@ impl Capability {
             Self::EmailDraft(_) => CapabilityKind::EmailDraft,
             Self::EmailReply(_, _) => CapabilityKind::EmailReply,
             Self::SignalReply(_) => CapabilityKind::SignalReply,
+            Self::DishAdd(_) => CapabilityKind::DishAdd,
+            Self::MealPlanSet(_) => CapabilityKind::MealPlanSet,
         }
     }
 
@@ -98,6 +106,8 @@ pub enum CapabilityKind {
     EmailDraft,
     EmailReply,
     SignalReply,
+    DishAdd,
+    MealPlanSet,
 }
 
 impl std::fmt::Display for CapabilityKind {
@@ -292,6 +302,40 @@ mod tests {
         let json = serde_json::to_string(&cap).unwrap();
         let parsed: Capability = serde_json::from_str(&json).unwrap();
         assert!(matches!(parsed, Capability::BringAdd(_)));
+    }
+
+    #[test]
+    fn dish_add_round_trip() {
+        use crate::types::Dish;
+        let cap = Capability::DishAdd(Dish {
+            id: None,
+            name: "Arroz de polvo".into(),
+            protein: Some("polvo".into()),
+            carb: Some("arroz".into()),
+            notes: None,
+        });
+        let json = serde_json::to_string(&cap).unwrap();
+        let parsed: Capability = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.kind(), CapabilityKind::DishAdd);
+        assert!(!parsed.is_read());
+    }
+
+    #[test]
+    fn meal_plan_set_round_trip() {
+        use crate::types::MealEntry;
+        let cap = Capability::MealPlanSet(vec![
+            MealEntry {
+                date: "2026-03-03".into(),
+                meal_type: "dinner".into(),
+                description: "Arroz de polvo".into(),
+                ingredients: vec![],
+                created_by: "sentinel".into(),
+            },
+        ]);
+        let json = serde_json::to_string(&cap).unwrap();
+        let parsed: Capability = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.kind(), CapabilityKind::MealPlanSet);
+        assert!(!parsed.is_read());
     }
 
     #[test]

@@ -25,6 +25,11 @@ Raw JSON only. No markdown, no code fences, no preamble. First character must be
       "title": "short title",
       "body": "notification body",
       "actions": []
+    },
+    {
+      "type": "request_action",
+      "capability": { "TaskCreate": { "title": "Pay water bill", "schedule": { "BusinessDay": { "day_spec": "LastOfMonth", "holidays": "pt" } }, "urgency": "Medium", "notes": null, "context": [], "conditions": [] } },
+      "explanation": "User asked to be reminded to pay the water bill on the last business day of each month."
     }
   ],
   "state_updates": [
@@ -37,6 +42,65 @@ Raw JSON only. No markdown, no code fences, no preamble. First character must be
 intents[].type must be exactly "notify" or "request_action". No other values.
 state_updates[].type must be exactly "add_observation", "add_memory", or "remove_memory". No other values.
 state_updates must be an empty array [] if there is nothing to store.
+
+## Capabilities Reference
+
+Use "request_action" whenever the user asks you to CREATE, MODIFY, or COMPLETE a task or reminder.
+NEVER claim in a "notify" intent that you have set something up — if it is not in a "request_action", it does not happen.
+
+### TaskCreate
+Creates a persisted recurring or one-off task/reminder.
+```
+{ "TaskCreate": {
+    "title": "string",
+    "notes": "string|null",
+    "schedule": <TaskSchedule>,
+    "urgency": "Low|Medium|High|Critical",
+    "context": ["optional tag strings"],
+    "conditions": ["optional condition strings"]
+} }
+```
+
+TaskSchedule variants — use exactly one of:
+- Once:              { "Once": { "due": "<ISO-8601 datetime>" } }
+- Recurring (RRULE): { "Recurring": { "rrule": "FREQ=DAILY;BYHOUR=7;BYMINUTE=30" } }
+  Common RRULEs:
+    Daily at 19:30 → "FREQ=DAILY;BYHOUR=19;BYMINUTE=30"
+    Monthly on the 15th → "FREQ=MONTHLY;BYMONTHDAY=15"
+    Weekly on Monday → "FREQ=WEEKLY;BYDAY=MO"
+- Business day:      { "BusinessDay": { "day_spec": <BusinessDaySpec>, "holidays": "pt|us|de" } }
+  BusinessDaySpec values (string):
+    "FirstOfMonth" | "LastOfMonth" | "LastFridayOfMonth" | "FirstOfQuarter"
+    or: { "NthOfMonth": 3 } | { "EveryNthBusinessDay": 5 }
+
+Examples:
+- Last business day of month (Portuguese calendar):
+  { "BusinessDay": { "day_spec": "LastOfMonth", "holidays": "pt" } }
+- 15th of each month:
+  { "Recurring": { "rrule": "FREQ=MONTHLY;BYMONTHDAY=15" } }
+- Daily at 19:30:
+  { "Recurring": { "rrule": "FREQ=DAILY;BYHOUR=19;BYMINUTE=30" } }
+
+### TaskComplete
+Marks an existing task as done.
+{ "TaskComplete": { "0": "<task-id>" } }
+
+### TaskModify
+Updates fields of an existing task.
+{ "TaskModify": [{ "0": "<task-id>" }, { "title": "new title", "notes": null, "schedule": null, "urgency": null }] }
+
+### TaskListRead
+Request a read of the current task list (auto-approved, data already in context).
+{ "TaskListRead": null }
+
+### BringAdd / BringRemove
+Add or remove a shopping list item.
+{ "BringAdd": { "name": "Milk", "category": "Dairy", "context": "for smoothies" } }
+{ "BringRemove": { "name": "Milk" } }
+
+### SignalReply
+Send a direct text reply via Signal. Use for conversational responses.
+{ "SignalReply": "Your reply text here." }
 
 ## Rules
 1. You suggest, the user decides. Frame everything as suggestions.
@@ -57,6 +121,12 @@ state_updates must be an empty array [] if there is nothing to store.
 12. Always compare the email's date against today's date. Meetings, deadlines,
     or time-sensitive content in emails older than 24 hours should not trigger
     urgent notifications unless the content is clearly recurring or still relevant.
+13. CRITICAL — Actions only happen through request_action intents. A "notify" alone does NOTHING
+    to the database. If the user asks you to create a task, set a reminder, add a shopping item,
+    or do anything persistent, you MUST emit a "request_action" intent with the correct capability.
+    Never use a "notify" to confirm you have done something that you haven't issued a capability for.
+    The "request_action" goes through an approval flow — the user will confirm or reject it — so
+    always include a "notify" alongside it to explain what you are proposing.
 "#;
 
 /// Build the system prompt with the configured assistant name.
@@ -200,6 +270,7 @@ pub fn format_task_trigger(task_id: &str, kind: &str, title: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
 
     #[test]
     fn prompt_builder_produces_valid_json() {

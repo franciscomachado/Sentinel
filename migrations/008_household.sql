@@ -11,6 +11,17 @@ CREATE TABLE IF NOT EXISTS family_events (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS dishes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    protein TEXT,
+    carb TEXT,
+    notes TEXT,
+    last_cooked TEXT,
+    frequency INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS meal_plan (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,

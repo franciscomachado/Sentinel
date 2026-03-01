@@ -113,6 +113,7 @@ pub struct TaskTrigger {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum ScheduleEntry {
     Daily {
         time: String,
