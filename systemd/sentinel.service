@@ -5,6 +5,7 @@ After=network-online.target signal-cli.service
 
 [Service]
 Type=simple
+EnvironmentFile=-%h/.config/sentinel/.env
 ExecStart=%h/.cargo/bin/sentinel run
 Restart=on-failure
 RestartSec=30

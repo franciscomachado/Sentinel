@@ -74,6 +74,22 @@ step "Installing binary"
 cargo install --path crates/sentinel-cli
 info "Installed to $(which sentinel 2>/dev/null || echo '$HOME/.cargo/bin/sentinel')"
 
+# ─── PATH setup ──────────────────────────────────────────────────────
+
+step "Shell PATH"
+
+# Make sentinel reachable for the rest of this script immediately
+export PATH="$HOME/.cargo/bin:$PATH"
+
+# Persist into whichever RC files exist, skipping if already present
+for _rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    if [[ -f "$_rc" ]] && ! grep -qF '.cargo/bin' "$_rc"; then
+        printf '\n# Added by Sentinel installer\nexport PATH="$HOME/.cargo/bin:$PATH"\n' >> "$_rc"
+        info "Added ~/.cargo/bin to PATH in $(basename "$_rc")"
+    fi
+done
+warn "Open a new terminal (or run: source ~/.bashrc / source ~/.zshrc) for PATH to take effect outside this session"
+
 # ─── Config ──────────────────────────────────────────────────────────
 
 step "Setting up configuration"
@@ -187,12 +203,6 @@ else
             printf 'provider = "osrm"\n'
             printf 'endpoint = "http://localhost:5000"\n'
         fi
-        if [[ -n "${signal_account:-}" ]]; then
-            printf '\n[signal]\n'
-            printf 'enabled = true\n'
-            printf 'account = "%s"\n' "$signal_account"
-            printf 'port = %s\n' "${signal_port:-42989}"
-        fi
         printf '\n[privacy]\n'
         printf 'ledger_retention_days = 365\n'
         printf 'audit_retention_days = 180\n'
@@ -226,6 +236,16 @@ else
     )
     info "Created $CONFIG_DIR/.env (mode 600)"
 
+fi
+
+# Source .env so credentials are available for the rest of this session
+# (e.g. sentinel onboard, sentinel check) without requiring a shell restart
+if [[ -f "$CONFIG_DIR/.env" ]]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "$CONFIG_DIR/.env"
+    set +a
+    info "Sourced $CONFIG_DIR/.env into current session"
 fi
 
 # ─── signal-cli setup ────────────────────────────────────────────────
@@ -295,6 +315,17 @@ if [[ -z "$signal_account" ]]; then
     read -rp "signal-cli account number (e.g. +351949594959): " signal_account
 fi
 
+# Append [signal] block now that the account number is confirmed
+if [[ -f "$CONFIG_DIR/sentinel.toml" ]] && ! grep -q '^\[signal\]' "$CONFIG_DIR/sentinel.toml"; then
+    {
+        printf '\n[signal]\n'
+        printf 'enabled = true\n'
+        printf 'account = "%s"\n' "$signal_account"
+        printf 'port = %s\n' "${signal_port:-42989}"
+    } >> "$CONFIG_DIR/sentinel.toml"
+    info "Added [signal] config to sentinel.toml"
+fi
+
 # ─── systemd services ───────────────────────────────────────────────
 
 step "Installing systemd user services"
@@ -338,6 +369,8 @@ fi
 
 # Sentinel service
 cp "$SENTINEL_DIR/systemd/sentinel.service" "$SYSTEMD_DIR/sentinel.service"
+# Pin EnvironmentFile to the actual config path (handles non-default XDG_CONFIG_HOME)
+sed -i "s|EnvironmentFile=.*|EnvironmentFile=-${CONFIG_DIR}/.env|" "$SYSTEMD_DIR/sentinel.service"
 info "Installed sentinel.service"
 
 # Reload and enable
