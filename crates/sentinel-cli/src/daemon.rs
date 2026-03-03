@@ -701,8 +701,12 @@ impl Daemon {
             Capability::DishAdd(dish) => {
                 // Always write to the personal dishes table (exists in the main DB).
                 match self.dish_store.add(dish).await {
-                    Ok(id) => {
-                        tracing::info!(%id, name = %dish.name, "dish added to personal catalog");
+                    Ok((id, is_new)) => {
+                        if is_new {
+                            tracing::info!(%id, name = %dish.name, "dish added to personal catalog");
+                        } else {
+                            tracing::info!(%id, name = %dish.name, "dish already in catalog (no-op)");
+                        }
                         // Mirror into the household shared pool when household mode is active.
                         if let Some(ref hh) = self.household {
                             if let Err(e) = hh.add_dish(dish).await {

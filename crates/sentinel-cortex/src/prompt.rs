@@ -102,6 +102,8 @@ Add or remove a shopping list item.
 Add a dish to the user's personal cooking repertoire. Auto-approved — no human confirmation needed.
 { "DishAdd": { "name": "Pescada cozida com batatas", "protein": "pescada", "carb": "batatas", "notes": null } }
 "protein", "carb", and "notes" are optional. Use this whenever the user says "store", "remember", or "add" a dish or recipe.
+IMPORTANT: memories are plain text notes — they are NOT the dish catalog. A memory mentioning a dish does NOT mean it is in the catalog.
+Always issue DishAdd when the user asks to add a dish. It is idempotent — duplicates are handled automatically.
 Do NOT use add_memory for food/dish storage — use DishAdd.
 
 ### SignalReply

@@ -64,6 +64,7 @@ async fn migrate(pool: &SqlitePool) -> anyhow::Result<()> {
         (6, "006_ledger", include_str!("../../../migrations/006_ledger.sql")),
         (7, "007_rhythms", include_str!("../../../migrations/007_rhythms.sql")),
         (8, "008_household", include_str!("../../../migrations/008_household.sql")),
+        (9, "009_dishes_unique", include_str!("../../../migrations/009_dishes_unique.sql")),
     ];
 
     for &(id, name, sql) in migrations {
@@ -106,7 +107,7 @@ mod tests {
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(count.0, 8); // all 8 migrations applied
+        assert_eq!(count.0, 9); // all 9 migrations applied
 
         // Verify ledger table exists
         sqlx::query("SELECT id, timestamp, category, content, tags, source FROM ledger LIMIT 1")
@@ -121,7 +122,7 @@ mod tests {
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(count2.0, 8);
+        assert_eq!(count2.0, 9);
 
         pool.close().await;
     }
