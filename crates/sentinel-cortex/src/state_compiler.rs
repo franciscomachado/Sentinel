@@ -98,6 +98,7 @@ impl StateCompiler {
         cultural_config: Option<&CulturalConfig>,
         household: Option<&sentinel_memory::household::HouseholdStore>,
         audit: Option<&AuditLog>,
+        calendar_text: Option<&str>,
     ) -> String {
         match trigger {
             TriggerType::MorningBriefing => {
@@ -112,6 +113,9 @@ impl StateCompiler {
                 self = self.pull_household(household).await;
                 self = self.pull_personal_dishes(dish_store).await;
                 self = self.pull_engagement(state).await;
+                if let Some(cal) = calendar_text {
+                    self = self.with_calendar(cal);
+                }
             }
             TriggerType::MorningReflection
             | TriggerType::WeeklyReflection
@@ -141,6 +145,9 @@ impl StateCompiler {
                 self = self.pull_household(household).await;
                 self = self.pull_personal_dishes(dish_store).await;
                 self = self.pull_dishes(household).await;
+                if let Some(cal) = calendar_text {
+                    self = self.with_calendar(cal);
+                }
             }
             TriggerType::EmailTriage(email) => {
                 // Search ledger for history with this sender
@@ -159,6 +166,9 @@ impl StateCompiler {
                 self = self.pull_household(household).await;
                 self = self.pull_personal_dishes(dish_store).await;
                 self = self.pull_dishes(household).await;
+                if let Some(cal) = calendar_text {
+                    self = self.with_calendar(cal);
+                }
             }
             TriggerType::UserNote(_) => {
                 // Freeform input — broad context to help classify
@@ -177,6 +187,9 @@ impl StateCompiler {
                 self = self.pull_ledger_hours(ledger, 12, 15).await;
                 self = self.pull_memories(state).await;
                 self = self.pull_tasks_today(task_store).await;
+                if let Some(cal) = calendar_text {
+                    self = self.with_calendar(cal);
+                }
             }
             TriggerType::WeatherUpdate => {
                 self = self.pull_ledger_hours(ledger, 4, 5).await;
@@ -657,7 +670,7 @@ mod tests {
 
         let config = test_config();
         let result = StateCompiler::new(&config)
-            .compile_for_trigger(&TriggerType::MorningBriefing, &ledger, &state_mgr, None, None, None, None, None, None, None)
+            .compile_for_trigger(&TriggerType::MorningBriefing, &ledger, &state_mgr, None, None, None, None, None, None, None, None)
             .await;
 
         assert!(result.contains("John"));
@@ -703,7 +716,7 @@ mod tests {
         });
 
         let result = StateCompiler::new(&config)
-            .compile_for_trigger(&trigger, &ledger, &state_mgr, None, None, None, None, None, None, None)
+            .compile_for_trigger(&trigger, &ledger, &state_mgr, None, None, None, None, None, None, None, None)
             .await;
 
         // Should have related history for this sender
@@ -721,7 +734,7 @@ mod tests {
 
         let config = test_config();
         let result = StateCompiler::new(&config)
-            .compile_for_trigger(&TriggerType::MorningBriefing, &ledger, &state_mgr, None, None, None, None, None, None, None)
+            .compile_for_trigger(&TriggerType::MorningBriefing, &ledger, &state_mgr, None, None, None, None, None, None, None, None)
             .await;
 
         // Should still have the basic context header
@@ -761,6 +774,7 @@ mod tests {
                 &ledger, &state_mgr, None, None, None, None, None,
                 Some(&hh),
                 None,
+                None,
             ).await;
 
         assert!(result.contains("Household"));
@@ -790,6 +804,7 @@ mod tests {
                 &TriggerType::WeeklyReflection,
                 &ledger, &state_mgr, None, None, None, None, None, None,
                 Some(&audit),
+                None,
             ).await;
 
         assert!(result.contains("Recent Corrections"));
@@ -817,6 +832,7 @@ mod tests {
             .compile_for_trigger(
                 &TriggerType::MorningBriefing,
                 &ledger, &state_mgr, None, None, None, None, None, None, None,
+                None,
             ).await;
 
         assert!(result.contains("Engagement"));

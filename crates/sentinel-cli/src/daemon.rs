@@ -196,6 +196,31 @@ impl Daemon {
     }
 
     async fn process_with_ai(&self, trigger_type: TriggerType) -> Result<()> {
+        // Step 1b: Fetch live calendar data from Radicale for triggers that need it
+        let needs_calendar = matches!(
+            &trigger_type,
+            TriggerType::MorningBriefing
+                | TriggerType::SignalQuery(_)
+                | TriggerType::WeeklyPlanning
+                | TriggerType::CalendarChange
+        );
+        let calendar_text: Option<String> = if needs_calendar {
+            if let Some(ref cal_config) = self.config.calendar {
+                let watcher = sentinel_watchers::caldav::CalDavWatcher::new(cal_config.clone());
+                match watcher.fetch_upcoming_events_text().await {
+                    Ok(text) => Some(text),
+                    Err(e) => {
+                        tracing::warn!(error = %e, "failed to fetch calendar from Radicale for context");
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         // Step 2: Compile trigger-specific state from real data
         let state = StateCompiler::new(&self.config)
             .compile_for_trigger(
@@ -209,6 +234,7 @@ impl Daemon {
                 self.config.cultural.as_ref(),
                 self.household.as_ref(),
                 Some(&self.audit),
+                calendar_text.as_deref(),
             )
             .await;
 

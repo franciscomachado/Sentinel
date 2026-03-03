@@ -30,6 +30,52 @@ impl CalDavWatcher {
         Self { config, http }
     }
 
+    /// Fetch upcoming calendar events and return them as a formatted text block
+    /// suitable for inclusion in LLM context. Uses the same CalDAV time window
+    /// as the watcher loop (yesterday → +14 days), filters to future events,
+    /// and sorts chronologically.
+    pub async fn fetch_upcoming_events_text(&self) -> anyhow::Result<String> {
+        let events = self.list_events().await?;
+        let now = Utc::now();
+
+        let mut upcoming: Vec<_> = events
+            .into_iter()
+            // Keep events that haven't ended yet (or have no end and start ≥ now-1h)
+            .filter(|e| {
+                e.event
+                    .end
+                    .map(|end| end >= now)
+                    .unwrap_or(e.event.start >= now - chrono::Duration::hours(1))
+            })
+            .collect();
+        upcoming.sort_by_key(|e| e.event.start);
+
+        if upcoming.is_empty() {
+            return Ok("No upcoming events in the next 14 days.".to_string());
+        }
+
+        let mut lines = Vec::with_capacity(upcoming.len());
+        for ev in &upcoming {
+            let time_str = if ev.event.all_day {
+                ev.event.start.format("%Y-%m-%d (all day)").to_string()
+            } else {
+                format!("{} UTC", ev.event.start.format("%Y-%m-%d %H:%M"))
+            };
+            let mut line = format!("- {} — {}", time_str, ev.event.title);
+            if let Some(ref loc) = ev.event.location {
+                line.push_str(&format!(" @ {loc}"));
+            }
+            if let Some(ref desc) = ev.event.description {
+                let desc = desc.trim();
+                if !desc.is_empty() {
+                    line.push_str(&format!(" ({desc})"));
+                }
+            }
+            lines.push(line);
+        }
+        Ok(lines.join("\n"))
+    }
+
     /// Run the watcher loop. Polls for calendar changes and sends them
     /// into the event channel.
     pub async fn run(&self, tx: tokio::sync::mpsc::Sender<WatchEvent>) -> anyhow::Result<()> {
