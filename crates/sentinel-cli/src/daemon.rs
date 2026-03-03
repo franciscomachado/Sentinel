@@ -14,6 +14,7 @@ use sentinel_gate::signal::SignalClient;
 use sentinel_membrane::audit::{AuditEntry, AuditLog};
 use sentinel_membrane::credentials::CredentialVault;
 use sentinel_membrane::policy::{PolicyContext, PolicyDecision, PolicyEngine};
+use sentinel_memory::dishes::DishStore;
 use sentinel_memory::ledger::{Ledger, LedgerCategory, LedgerSource};
 use sentinel_memory::rhythm::RhythmEngine;
 use sentinel_memory::state::StateManager;
@@ -36,6 +37,7 @@ pub struct Daemon {
     #[allow(dead_code)]
     state: StateManager,
     task_store: TaskStore,
+    dish_store: DishStore,
     mode_tracker: ModeTracker,
     #[cfg(feature = "bring")]
     bring_client: Option<sentinel_bring::BringClient>,
@@ -61,6 +63,7 @@ impl Daemon {
         let notifier = NotificationRouter::with_desktop(config.user.assistant_name());
         let state = StateManager::new(pool.clone());
         let task_store = TaskStore::new(pool.clone());
+        let dish_store = DishStore::new(pool.clone());
 
         // Bring shopping list client — authenticate if credentials are available
         #[cfg(feature = "bring")]
@@ -121,6 +124,7 @@ impl Daemon {
             approvals,
             state,
             task_store,
+            dish_store,
             mode_tracker,
             #[cfg(feature = "bring")]
             bring_client,
@@ -300,7 +304,17 @@ impl Daemon {
             "LLM response received"
         );
 
-        // Step 5: Process each intent through policy
+        // Step 5: Process each intent through policy.
+        //
+        // Notify intents are deferred until all RequestAction intents have been
+        // evaluated. If any RequestAction requires human approval the approval
+        // request itself is the user-facing cue; sending LLM-generated
+        // confirmations at the same time would imply the action is already done,
+        // misleading the user into never sending the required "yes <id>" reply.
+        let policy_ctx = self.build_policy_context().await;
+        let mut deferred_notifies: Vec<(&Urgency, &str, &str)> = Vec::new();
+        let mut has_pending_approval = false;
+
         for intent in &response.parsed.intents {
             match intent {
                 Intent::Notify {
@@ -309,20 +323,12 @@ impl Daemon {
                     body,
                     ..
                 } => {
-                    tracing::info!(%urgency, %title, "notification");
-                    // Signal is primary (always on you), desktop is supplementary
-                    if let Some(ref signal) = self.signal_client {
-                        if let Err(e) = signal.send_notification(urgency, title, body).await {
-                            tracing::warn!(error = %e, "Signal notification failed");
-                        }
-                    }
-                    self.notifier.notify(urgency, title, body);
+                    deferred_notifies.push((urgency, title, body));
                 }
                 Intent::RequestAction {
                     capability,
                     explanation,
                 } => {
-                    let policy_ctx = self.build_policy_context().await;
                     let decision = self.policy.evaluate(capability, chrono::Utc::now(), &policy_ctx);
                     match decision {
                         PolicyDecision::AutoApproved => {
@@ -332,12 +338,6 @@ impl Daemon {
                             );
 
                             self.execute_capability(capability).await;
-
-                            self.notifier.notify(
-                                &Urgency::Low,
-                                &format!("Auto-approved: {:?}", capability.kind()),
-                                explanation,
-                            );
 
                             let entry = AuditEntry::new(
                                 capability,
@@ -349,6 +349,7 @@ impl Daemon {
                             self.audit.record(&entry).await?;
                         }
                         PolicyDecision::RequiresApproval { reason } => {
+                            has_pending_approval = true;
                             tracing::info!(
                                 capability = %capability.kind(),
                                 %reason,
@@ -405,6 +406,20 @@ impl Daemon {
                         }
                     }
                 }
+            }
+        }
+
+        // Send deferred Notify intents — but only when no action is pending
+        // human approval, to avoid premature confirmation messages.
+        if !has_pending_approval {
+            for (urgency, title, body) in &deferred_notifies {
+                tracing::info!(%urgency, %title, "notification");
+                if let Some(ref signal) = self.signal_client {
+                    if let Err(e) = signal.send_notification(urgency, title, body).await {
+                        tracing::warn!(error = %e, "Signal notification failed");
+                    }
+                }
+                self.notifier.notify(urgency, title, body);
             }
         }
 
@@ -684,19 +699,18 @@ impl Daemon {
 
             // === HOUSEHOLD ===
             Capability::DishAdd(dish) => {
-                if let Some(ref hh) = self.household {
-                    match hh.add_dish(dish).await {
-                        Ok(id) => {
-                            tracing::info!(%id, name = %dish.name, "dish added to catalog");
-                            self.notifier.info(&format!(
-                                "🍽 '{}' added to dish catalog",
-                                dish.name,
-                            ));
+                // Always write to the personal dishes table (exists in the main DB).
+                match self.dish_store.add(dish).await {
+                    Ok(id) => {
+                        tracing::info!(%id, name = %dish.name, "dish added to personal catalog");
+                        // Mirror into the household shared pool when household mode is active.
+                        if let Some(ref hh) = self.household {
+                            if let Err(e) = hh.add_dish(dish).await {
+                                tracing::warn!(error = %e, name = %dish.name, "failed to mirror dish to household DB");
+                            }
                         }
-                        Err(e) => tracing::error!(error = %e, name = %dish.name, "failed to add dish"),
                     }
-                } else {
-                    tracing::warn!(name = %dish.name, "household not configured — cannot add dish");
+                    Err(e) => tracing::error!(error = %e, name = %dish.name, "failed to add dish"),
                 }
             }
             Capability::MealPlanSet(entries) => {

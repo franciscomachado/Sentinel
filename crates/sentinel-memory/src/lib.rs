@@ -1,4 +1,5 @@
 pub mod db;
+pub mod dishes;
 pub mod household;
 pub mod ledger;
 pub mod reflections;

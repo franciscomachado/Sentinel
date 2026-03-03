@@ -312,7 +312,7 @@ imap_host = "mail.example.com"
 imap_port = 993
 
 [calendar]
-caldav_url = "http://127.0.0.1:5232/youruser/calendar.ics/"
+caldav_url = "http://127.0.0.1:5232/<your-radicale-username>/calendar.ics/"
 
 [signal]
 enabled = true
@@ -657,12 +657,16 @@ The `Capability` enum is the complete list of things the AI can ask to do:
 // Reads (auto-approved)
 EmailRead · CalendarRead · TaskListRead · WeatherFetch · RoutingQuery
 
-// Writes (require approval or policy)
-CalendarEventCreate · CalendarEventModify · CalendarEventDelete
+// Auto-approved writes (reversible / low-risk)
 TaskCreate · TaskComplete · TaskModify
+DishAdd · MealPlanSet
+CalendarEventCreate · CalendarEventModify
+ReminderSet
+
+// Require human approval
+CalendarEventDelete
 BringAdd · BringRemove
 EmailDraft · EmailReply · SignalReply
-ReminderSet
 ```
 
 There is no `Other(String)` variant, no `ExecuteCommand` and no `FileWrite`. There is no `EmailSend`, only `EmailDraft`, which requires human approval before anything is actually sent. If the model returns something outside this enum, it is dropped at parse time.

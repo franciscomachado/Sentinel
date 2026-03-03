@@ -275,6 +275,32 @@ impl HolidayCalendar {
     }
 }
 
+impl Default for HolidayCalendar {
+    /// A calendar with no holidays — treats every weekday as a business day.
+    fn default() -> Self {
+        Self {
+            country_code: String::new(),
+            fixed: vec![],
+            easter_offsets: vec![],
+            nth_weekday_rules: vec![],
+            home_municipal: None,
+            work_municipal: None,
+        }
+    }
+}
+
+/// Load the built-in holiday calendar for a known ISO country code (case-insensitive).
+/// Returns `None` for unrecognised codes; the caller can fall back to `HolidayCalendar::default()`.
+pub fn load_calendar_for_country(country_code: &str) -> Option<HolidayCalendar> {
+    let toml_str = match country_code.to_lowercase().as_str() {
+        "pt" => include_str!("../../../config/holidays/pt.toml"),
+        "de" => include_str!("../../../config/holidays/de.toml"),
+        "us" => include_str!("../../../config/holidays/us.toml"),
+        _ => return None,
+    };
+    HolidayCalendar::from_toml(toml_str, None, None).ok()
+}
+
 /// Resolve the nth occurrence of a weekday in a given month.
 /// `nth = 1` → first, `nth = 2` → second, ..., `nth = -1` → last.
 fn resolve_nth_weekday(year: i32, month: u32, weekday: Weekday, nth: i8) -> Option<NaiveDate> {

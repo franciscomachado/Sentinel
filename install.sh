@@ -162,15 +162,18 @@ else
 
     # ── CalDAV ────────────────────────────────────────────────────────
     step "Calendar (CalDAV)"
-    read -rp "  CalDAV URL [http://localhost:5232/user/default/]: " _caldav_url
-    _caldav_url="${_caldav_url:-http://localhost:5232/user/default/}"
     _caldav_user=""
     _caldav_pass=""
     read -rp "  CalDAV username (leave blank if no auth): " _caldav_user
     if [[ -n "$_caldav_user" ]]; then
         read -rsp "  CalDAV password: " _caldav_pass
         echo ""
+        _caldav_default_url="http://localhost:5232/${_caldav_user}/calendar.ics/"
+    else
+        _caldav_default_url="http://localhost:5232/user/calendar.ics/"
     fi
+    read -rp "  CalDAV URL [$_caldav_default_url]: " _caldav_url
+    _caldav_url="${_caldav_url:-$_caldav_default_url}"
 
     # ── Write sentinel.toml ───────────────────────────────────────────
     {

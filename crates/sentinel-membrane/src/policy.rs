@@ -94,21 +94,12 @@ impl PolicyEngine {
                     return !cal_policy.auto_approve_reminder_creation;
                 }
             }
-            // Tasks: max_recurring_tasks — if at limit, require approval for new recurring tasks
-            Capability::TaskCreate(task) => {
-                if let Some(ref task_policy) = self.config.tasks {
-                    if matches!(task.schedule, sentinel_core::schedule::TaskSchedule::Recurring { .. }
-                        | sentinel_core::schedule::TaskSchedule::BusinessDay { .. })
-                        && ctx.active_recurring_tasks >= task_policy.max_recurring_tasks
-                    {
-                        return true;
-                    }
-                }
-            }
-            Capability::TaskComplete(_) => {
-                if let Some(ref task_policy) = self.config.tasks {
-                    return !task_policy.auto_approve_completion;
-                }
+            // Tasks are personal reminders — auto-approve all task writes.
+            // The worst-case leak is an extra notification; all operations are reversible
+            // (complete a mistaken task, or modify it). Only CalendarEventDelete is
+            // kept behind approval because it removes shared calendar data.
+            Capability::TaskCreate(_) | Capability::TaskComplete(_) | Capability::TaskModify(_, _) => {
+                return false;
             }
             // Bring: distinguish user-requested vs AI-suggested
             Capability::BringAdd(_) => {
@@ -124,6 +115,9 @@ impl PolicyEngine {
                     return !bring_policy.auto_approve_when_user_requested;
                 }
             }
+            // DishAdd is always auto-approved: it's benign personal data entry
+            // explicitly requested by the user (e.g. "store this dish").
+            Capability::DishAdd(_) => return false,
             _ => {}
         }
 
@@ -329,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn max_recurring_tasks_blocks_when_at_limit() {
+    fn task_create_is_auto_approved() {
         let engine = PolicyEngine::new(test_config());
         let cap = Capability::TaskCreate(Task {
             title: "Weekly standup".into(),
@@ -340,18 +334,11 @@ mod tests {
             urgency: sentinel_core::types::Urgency::Medium,
         });
 
-        // Under limit — should require approval (it's a write) but not blocked
-        let ctx = PolicyContext { active_recurring_tasks: 4, ..Default::default() };
+        // All task writes are auto-approved regardless of recurring task count
+        let ctx = PolicyContext { active_recurring_tasks: 99, ..Default::default() };
         assert!(matches!(
             engine.evaluate(&cap, Utc::now(), &ctx),
-            PolicyDecision::RequiresApproval { .. }
-        ));
-
-        // At limit — requires approval because max_recurring_tasks forces it
-        let ctx = PolicyContext { active_recurring_tasks: 5, ..Default::default() };
-        assert!(matches!(
-            engine.evaluate(&cap, Utc::now(), &ctx),
-            PolicyDecision::RequiresApproval { .. }
+            PolicyDecision::AutoApproved
         ));
     }
 

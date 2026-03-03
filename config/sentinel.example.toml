@@ -79,7 +79,7 @@ preview_max_chars = 500
 # send_read_receipts = true
 
 [calendar]
-caldav_url = "http://localhost:5232/user/default/"
+caldav_url = "http://localhost:5232/<your-radicale-username>/calendar.ics/"
 # poll_interval_secs = 300       # how often to check for changes (default: 5min)
 # username = "user"              # or set SENTINEL_CALDAV_USER env var
 # password = "secret"            # or set SENTINEL_CALDAV_PASS env var

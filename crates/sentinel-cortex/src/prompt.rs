@@ -98,6 +98,12 @@ Add or remove a shopping list item.
 { "BringAdd": { "name": "Milk", "category": "Dairy", "context": "for smoothies" } }
 { "BringRemove": { "name": "Milk" } }
 
+### DishAdd
+Add a dish to the user's personal cooking repertoire. Auto-approved — no human confirmation needed.
+{ "DishAdd": { "name": "Pescada cozida com batatas", "protein": "pescada", "carb": "batatas", "notes": null } }
+"protein", "carb", and "notes" are optional. Use this whenever the user says "store", "remember", or "add" a dish or recipe.
+Do NOT use add_memory for food/dish storage — use DishAdd.
+
 ### SignalReply
 Send a direct text reply via Signal. Use for conversational responses.
 { "SignalReply": "Your reply text here." }
@@ -125,8 +131,10 @@ Send a direct text reply via Signal. Use for conversational responses.
     to the database. If the user asks you to create a task, set a reminder, add a shopping item,
     or do anything persistent, you MUST emit a "request_action" intent with the correct capability.
     Never use a "notify" to confirm you have done something that you haven't issued a capability for.
-    The "request_action" goes through an approval flow — the user will confirm or reject it — so
-    always include a "notify" alongside it to explain what you are proposing.
+    Auto-approved capabilities (reads, DishAdd): you MAY include a "notify" to confirm the result.
+    Approval-required capabilities (TaskCreate, CalendarEventCreate, BringAdd, etc.): do NOT include
+    a paired "notify" — the approval request is the user-facing message; the task is not done until
+    they reply "yes <id>". A confirmation notify before approval is misleading.
 "#;
 
 /// Build the system prompt with the configured assistant name.

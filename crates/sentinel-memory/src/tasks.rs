@@ -1,5 +1,6 @@
-use chrono::{DateTime, Datelike, Utc};
+use chrono::{DateTime, Utc};
 use sentinel_core::capability::{Task, TaskPatch};
+use sentinel_core::holidays::load_calendar_for_country;
 use sentinel_core::schedule::TaskSchedule;
 use sentinel_core::types::Urgency;
 use sqlx::SqlitePool;
@@ -387,9 +388,12 @@ fn compute_initial_trigger(schedule: &TaskSchedule) -> Option<DateTime<Utc>> {
             // For RRULE, we'd need a parser. For now, set to tomorrow.
             Some(Utc::now() + chrono::Duration::days(1))
         }
-        TaskSchedule::BusinessDay { .. } => {
-            // Would need holiday calendar to compute — set to tomorrow as placeholder.
-            Some(Utc::now() + chrono::Duration::days(1))
+        TaskSchedule::BusinessDay { day_spec, holidays } => {
+            let today = Utc::now().date_naive();
+            let cal = load_calendar_for_country(holidays).unwrap_or_default();
+            day_spec
+                .next_occurrence(today, &cal)
+                .map(|d| d.and_hms_opt(0, 0, 0).unwrap().and_utc())
         }
         TaskSchedule::Triggered { .. } | TaskSchedule::RelativeToEvent { .. } => None,
     }
@@ -418,13 +422,13 @@ fn advance_trigger(schedule: &TaskSchedule) -> Option<DateTime<Utc>> {
                 _ => Some(now + chrono::Duration::days(1)),
             }
         }
-        TaskSchedule::BusinessDay { .. } => {
-            // Would need holiday calendar — approximate with next weekday
-            let mut next = Utc::now() + chrono::Duration::days(1);
-            while next.weekday().num_days_from_monday() >= 5 {
-                next += chrono::Duration::days(1);
-            }
-            Some(next)
+        TaskSchedule::BusinessDay { day_spec, holidays } => {
+            // Advance to the next occurrence strictly after today
+            let tomorrow = (Utc::now() + chrono::Duration::days(1)).date_naive();
+            let cal = load_calendar_for_country(holidays).unwrap_or_default();
+            day_spec
+                .next_occurrence(tomorrow, &cal)
+                .map(|d| d.and_hms_opt(0, 0, 0).unwrap().and_utc())
         }
         _ => None,
     }
