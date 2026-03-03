@@ -98,6 +98,11 @@ Add or remove a shopping list item.
 { "BringAdd": { "name": "Milk", "category": "Dairy", "context": "for smoothies" } }
 { "BringRemove": { "name": "Milk" } }
 
+### DishListRead
+List the user's stored dishes. The dish catalog is already injected into your context under "Dish Catalog".
+Issue this capability when the user asks what dishes are stored. The data is already present — read from context and reply.
+{ "DishListRead": null }
+
 ### DishAdd
 Add a dish to the user's personal cooking repertoire. Auto-approved — no human confirmation needed.
 { "DishAdd": { "name": "Pescada cozida com batatas", "protein": "pescada", "carb": "batatas", "notes": null } }

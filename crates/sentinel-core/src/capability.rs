@@ -14,6 +14,7 @@ pub enum Capability {
     EmailRead(EmailQuery),
     CalendarRead(CalendarQuery),
     TaskListRead,
+    DishListRead,
     WeatherFetch(Location),
     RoutingQuery(RouteRequest),
 
@@ -55,6 +56,7 @@ impl Capability {
             Self::EmailRead(_) => CapabilityKind::EmailRead,
             Self::CalendarRead(_) => CapabilityKind::CalendarRead,
             Self::TaskListRead => CapabilityKind::TaskListRead,
+            Self::DishListRead => CapabilityKind::DishListRead,
             Self::WeatherFetch(_) => CapabilityKind::WeatherFetch,
             Self::RoutingQuery(_) => CapabilityKind::RoutingQuery,
             Self::CalendarEventCreate(_) => CapabilityKind::CalendarEventCreate,
@@ -81,6 +83,7 @@ impl Capability {
             Self::EmailRead(_)
                 | Self::CalendarRead(_)
                 | Self::TaskListRead
+                | Self::DishListRead
                 | Self::WeatherFetch(_)
                 | Self::RoutingQuery(_)
         )
@@ -92,6 +95,7 @@ pub enum CapabilityKind {
     EmailRead,
     CalendarRead,
     TaskListRead,
+    DishListRead,
     WeatherFetch,
     RoutingQuery,
     CalendarEventCreate,

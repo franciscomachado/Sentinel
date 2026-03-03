@@ -5,6 +5,7 @@ use sentinel_memory::ledger::Ledger;
 use sentinel_memory::rhythm::RhythmEngine;
 use sentinel_memory::state::StateManager;
 use sentinel_memory::tasks::TaskStore;
+use sentinel_memory::dishes::DishStore;
 
 use crate::triage::TriggerType;
 
@@ -92,6 +93,7 @@ impl StateCompiler {
         state: &StateManager,
         rhythm_engine: Option<&RhythmEngine>,
         task_store: Option<&TaskStore>,
+        dish_store: Option<&DishStore>,
         sports_config: Option<&SportsConfig>,
         cultural_config: Option<&CulturalConfig>,
         household: Option<&sentinel_memory::household::HouseholdStore>,
@@ -108,6 +110,7 @@ impl StateCompiler {
                 self = self.pull_sports(sports_config).await;
                 self = self.pull_cultural(cultural_config).await;
                 self = self.pull_household(household).await;
+                self = self.pull_personal_dishes(dish_store).await;
                 self = self.pull_engagement(state).await;
             }
             TriggerType::MorningReflection
@@ -136,6 +139,7 @@ impl StateCompiler {
                 self = self.pull_sports(sports_config).await;
                 self = self.pull_cultural(cultural_config).await;
                 self = self.pull_household(household).await;
+                self = self.pull_personal_dishes(dish_store).await;
                 self = self.pull_dishes(household).await;
             }
             TriggerType::EmailTriage(email) => {
@@ -153,6 +157,7 @@ impl StateCompiler {
                 self = self.pull_tasks_today(task_store).await;
                 self = self.pull_travel_mode(state).await;
                 self = self.pull_household(household).await;
+                self = self.pull_personal_dishes(dish_store).await;
                 self = self.pull_dishes(household).await;
             }
             TriggerType::UserNote(_) => {
@@ -421,6 +426,32 @@ impl StateCompiler {
         self.add_section("Cultural Events", &text)
     }
 
+    /// Pull personal dish catalog from the user's own DishStore.
+    async fn pull_personal_dishes(self, store: Option<&DishStore>) -> Self {
+        let Some(store) = store else { return self };
+        let dishes = match store.list().await {
+            Ok(d) => d,
+            Err(e) => {
+                tracing::warn!(error = %e, "failed to load personal dish catalog");
+                return self;
+            }
+        };
+        if dishes.is_empty() {
+            return self;
+        }
+        let lines: Vec<String> = dishes
+            .iter()
+            .map(|d| {
+                let mut parts = vec![d.name.clone()];
+                if let Some(ref p) = d.protein { parts.push(format!("protein: {p}")); }
+                if let Some(ref c) = d.carb    { parts.push(format!("starch: {c}")); }
+                if let Some(ref n) = d.notes   { parts.push(format!("notes: {n}")); }
+                format!("- {}", parts.join(" | "))
+            })
+            .collect();
+        self.add_section("Dish Catalog", &lines.join("\n"))
+    }
+
     /// Pull the dish catalog — used for meal-plan suggestion queries.
     async fn pull_dishes(self, store: Option<&sentinel_memory::household::HouseholdStore>) -> Self {
         let Some(store) = store else { return self };
@@ -626,7 +657,7 @@ mod tests {
 
         let config = test_config();
         let result = StateCompiler::new(&config)
-            .compile_for_trigger(&TriggerType::MorningBriefing, &ledger, &state_mgr, None, None, None, None, None, None)
+            .compile_for_trigger(&TriggerType::MorningBriefing, &ledger, &state_mgr, None, None, None, None, None, None, None)
             .await;
 
         assert!(result.contains("John"));
@@ -672,7 +703,7 @@ mod tests {
         });
 
         let result = StateCompiler::new(&config)
-            .compile_for_trigger(&trigger, &ledger, &state_mgr, None, None, None, None, None, None)
+            .compile_for_trigger(&trigger, &ledger, &state_mgr, None, None, None, None, None, None, None)
             .await;
 
         // Should have related history for this sender
@@ -690,7 +721,7 @@ mod tests {
 
         let config = test_config();
         let result = StateCompiler::new(&config)
-            .compile_for_trigger(&TriggerType::MorningBriefing, &ledger, &state_mgr, None, None, None, None, None, None)
+            .compile_for_trigger(&TriggerType::MorningBriefing, &ledger, &state_mgr, None, None, None, None, None, None, None)
             .await;
 
         // Should still have the basic context header
@@ -727,7 +758,7 @@ mod tests {
         let result = StateCompiler::new(&config)
             .compile_for_trigger(
                 &TriggerType::MorningBriefing,
-                &ledger, &state_mgr, None, None, None, None,
+                &ledger, &state_mgr, None, None, None, None, None,
                 Some(&hh),
                 None,
             ).await;
@@ -757,7 +788,7 @@ mod tests {
         let result = StateCompiler::new(&config)
             .compile_for_trigger(
                 &TriggerType::WeeklyReflection,
-                &ledger, &state_mgr, None, None, None, None, None,
+                &ledger, &state_mgr, None, None, None, None, None, None,
                 Some(&audit),
             ).await;
 
@@ -785,7 +816,7 @@ mod tests {
         let result = StateCompiler::new(&config)
             .compile_for_trigger(
                 &TriggerType::MorningBriefing,
-                &ledger, &state_mgr, None, None, None, None, None, None,
+                &ledger, &state_mgr, None, None, None, None, None, None, None,
             ).await;
 
         assert!(result.contains("Engagement"));

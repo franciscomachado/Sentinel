@@ -204,6 +204,7 @@ impl Daemon {
                 &self.state,
                 Some(&self.rhythm),
                 Some(&self.task_store),
+                Some(&self.dish_store),
                 self.config.sports.as_ref(),
                 self.config.cultural.as_ref(),
                 self.household.as_ref(),
@@ -506,6 +507,9 @@ impl Daemon {
             }
             Capability::TaskListRead => {
                 tracing::info!("task list read acknowledged (data already in context)");
+            }
+            Capability::DishListRead => {
+                tracing::info!("dish list read acknowledged (data already in context)");
             }
             Capability::WeatherFetch(location) => {
                 tracing::info!(location = %location.name, "weather fetch acknowledged (data already in context)");
